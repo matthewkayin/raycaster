@@ -1,0 +1,5 @@
+.clangd/
+dbg/
+obj/
+game
+compile_commands.json
