@@ -168,10 +168,28 @@ void engine_render_fps(){
     engine_render_text(ups_text, COLOR_WHITE, 0, 10);
 }
 
-void engine_render_state(){
+void engine_render_state(State* state){
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
+
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    for(int x = 0; x < state->map_width; x++){
+
+        for(int y = 0; y < state->map_height; y++){
+
+            int index = x + (y * state->map_width);
+            if(state->map[index]){
+
+                SDL_RenderFillRect(renderer, &(SDL_Rect){ .x = x * 20, .y = y * 20, .w = 20, .h = 20 });
+            }
+        }
+    }
+
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+    SDL_RenderFillRect(renderer, &(SDL_Rect){ .x = (int)(state->player_position.x * 20) - 2, .y = (int)(state->player_position.y * 20) - 2, .w = 4, .h = 4 });
+    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+    SDL_RenderDrawLine(renderer, (int)(state->player_position.x * 20), (int)(state->player_position.y * 20), (int)((state->player_position.x + state->player_direction.x) * 20), (int)((state->player_position.y + state->player_direction.y) * 20));
 
     engine_render_fps();
 
