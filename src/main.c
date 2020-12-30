@@ -97,7 +97,7 @@ int main(){
 
         float delta = engine_clock_tick();
         state_update(state, delta);
-        engine_render_state(state);
+        engine_render_scene(state);
     }
 
 

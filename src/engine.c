@@ -5,6 +5,8 @@
 
 #include <stdio.h>
 
+#define PI 3.14159265358979323846
+
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 
@@ -195,5 +197,37 @@ void engine_render_state(State* state){
 
     engine_render_fps();
 
+    SDL_RenderPresent(renderer);
+}
+
+void engine_render_scene(State* state){
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    vector camera_plane = vector_rotate(state->player_direction, -PI / 2);
+    for(int x = 0; x < SCREEN_WIDTH; x++){
+
+        float camera_x = (2 * x) / (float)(SCREEN_WIDTH - 1);
+        vector ray = vector_sum(state->player_direction, vector_mult(camera_plane, camera_x));
+        float wall_dist = raycast_get_walldist(state, state->player_position, ray);
+
+        int line_height = (int)(SCREEN_HEIGHT / wall_dist);
+        int line_start = (SCREEN_HEIGHT / 2) - (line_height / 2);
+        int line_end = (SCREEN_HEIGHT / 2) + (line_height / 2);
+        if(line_start < 0){
+
+            line_start = 0;
+        }
+        if(line_end >= SCREEN_HEIGHT){
+
+            line_end = SCREEN_HEIGHT - 1;
+        }
+
+        SDL_RenderDrawLine(renderer, x, line_start, x, line_end);
+    }
+
+    engine_render_fps();
     SDL_RenderPresent(renderer);
 }

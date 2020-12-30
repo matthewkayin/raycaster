@@ -144,3 +144,10 @@ vector raycast(State* state, vector origin, vector ray){
 
     return current;
 }
+
+float raycast_get_walldist(State* state, vector origin, vector ray){
+
+    vector wall_point = raycast(state, origin, ray);
+    vector dist = (vector){ .x = wall_point.x - origin.x, .y = wall_point.y - origin.y };
+    return wall_point.x == (int)wall_point.x ? dist.x / ray.x : dist.y / ray.y;
+}

@@ -20,3 +20,4 @@ State* state_init();
 void state_update(State* state, float delta);
 
 vector raycast(State* state, vector origin, vector ray);
+float raycast_get_walldist(State* state, vector origin, vector ray);
