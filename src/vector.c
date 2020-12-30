@@ -40,3 +40,8 @@ vector vector_rotate(vector a, float b){
 
     return (vector){ .x = (a.x * cos(b)) - (a.y * sin(b)), .y = (a.x * sin(b)) + (a.y * cos(b)) };
 }
+
+int max(int a, int b){
+
+    return a > b ? a : b;
+}

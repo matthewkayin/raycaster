@@ -188,8 +188,10 @@ void engine_render_state(State* state){
 
     SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
     SDL_RenderFillRect(renderer, &(SDL_Rect){ .x = (int)(state->player_position.x * 20) - 2, .y = (int)(state->player_position.y * 20) - 2, .w = 4, .h = 4 });
+
+    vector wall = raycast(state, state->player_position, state->player_direction);
     SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-    SDL_RenderDrawLine(renderer, (int)(state->player_position.x * 20), (int)(state->player_position.y * 20), (int)((state->player_position.x + state->player_direction.x) * 20), (int)((state->player_position.y + state->player_direction.y) * 20));
+    SDL_RenderDrawLine(renderer, (int)(state->player_position.x * 20), (int)(state->player_position.y * 20), (int)((wall.x) * 20), (int)((wall.y) * 20));
 
     engine_render_fps();
 
