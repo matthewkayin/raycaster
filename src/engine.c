@@ -5,8 +5,6 @@
 
 #include <stdio.h>
 
-#define PI 3.14159265358979323846
-
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 
@@ -66,6 +64,9 @@ bool engine_init(){
         printf("Unable to initialize font_small! SDL Error: %s\n", TTF_GetError());
         return false;
     }
+
+    engine_set_resolution(SCREEN_WIDTH, SCREEN_HEIGHT);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     return true;
 }
@@ -170,7 +171,7 @@ void engine_render_fps(){
     engine_render_text(ups_text, COLOR_WHITE, 0, 10);
 }
 
-void engine_render_state(State* state){
+void engine_render_preview(State* state){
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
@@ -191,26 +192,27 @@ void engine_render_state(State* state){
     SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
     SDL_RenderFillRect(renderer, &(SDL_Rect){ .x = (int)(state->player_position.x * 20) - 2, .y = (int)(state->player_position.y * 20) - 2, .w = 4, .h = 4 });
 
-    vector wall = raycast(state, state->player_position, state->player_direction);
     SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-    SDL_RenderDrawLine(renderer, (int)(state->player_position.x * 20), (int)(state->player_position.y * 20), (int)((wall.x) * 20), (int)((wall.y) * 20));
+    vector dir = vector_sum(state->player_position, state->player_direction);
+    vector cam = vector_sum(dir, state->player_camera);
+    SDL_RenderDrawLine(renderer, (int)(state->player_position.x * 20), (int)(state->player_position.y * 20), (int)(dir.x * 20), (int)(dir.y * 20));
+    SDL_RenderDrawLine(renderer, (int)(dir.x * 20), (int)(dir.y * 20), (int)(cam.x * 20), (int)(cam.y * 20));
 
     engine_render_fps();
 
     SDL_RenderPresent(renderer);
 }
 
-void engine_render_scene(State* state){
+void engine_render_state(State* state){
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    vector camera_plane = vector_rotate(state->player_direction, -PI / 2);
     for(int x = 0; x < SCREEN_WIDTH; x++){
 
-        float camera_x = (2 * x) / (float)(SCREEN_WIDTH - 1);
-        vector ray = vector_sum(state->player_direction, vector_mult(camera_plane, camera_x));
+        float camera_x = ((2 * x) / (float)SCREEN_WIDTH) - 1;
+        vector ray = vector_sum(state->player_direction, vector_mult(state->player_camera, camera_x));
         float wall_dist = raycast_get_walldist(state, state->player_position, ray);
 
         int line_height = (int)(SCREEN_HEIGHT / wall_dist);

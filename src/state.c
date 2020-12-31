@@ -1,6 +1,7 @@
 #include "state.h"
 
 #include <stdlib.h>
+#include <math.h>
 
 const float PLAYER_SPEED = 0.05;
 const float PLAYER_ROTATE_SPEED = 0.05;
@@ -34,6 +35,7 @@ State* state_init(){
     new_state->player_position = (vector){ .x = 2.5, .y = 2.5 };
     new_state->player_move_dir = ZERO_VECTOR;
     new_state->player_direction = (vector){ .x = 0, .y = -1 };
+    new_state->player_camera = (vector){ .x = 0.66, .y = 0 };
     new_state->player_rotate_dir = 0;
 
     return new_state;
@@ -41,9 +43,16 @@ State* state_init(){
 
 void state_update(State* state, float delta){
 
-    vector player_velocity = vector_scale(state->player_move_dir, PLAYER_SPEED);
-    state->player_position = vector_sum(state->player_position, vector_mult(player_velocity, delta));
-    state->player_direction = vector_rotate(state->player_direction, PLAYER_ROTATE_SPEED * state->player_rotate_dir);
+    float rotation_amount = PLAYER_ROTATE_SPEED * state->player_rotate_dir * delta;
+    state->player_direction = vector_rotate(state->player_direction, rotation_amount);
+    state->player_camera = vector_rotate(state->player_camera, rotation_amount);
+
+    if(state->player_move_dir.x != 0 || state->player_move_dir.y != 0){
+
+        float angle = atan2(-state->player_move_dir.y, -state->player_move_dir.x) - (PI / 2);
+        vector player_velocity = vector_scale(vector_rotate(state->player_direction, angle), PLAYER_SPEED);
+        state->player_position = vector_sum(state->player_position, vector_mult(player_velocity, delta));
+    }
 }
 
 bool hits_wall(State* state, vector v){
@@ -143,6 +152,69 @@ vector raycast(State* state, vector origin, vector ray){
     } // End while
 
     return current;
+}
+
+float raycast_dda(State* state, vector origin, vector ray){
+
+    vector start = (vector){ .x = (int)origin.x, .y = (int)origin.y };
+    vector side_dist;
+    vector delta_dist = (vector){ .x = ray.x == 0 ? 0 : fabs(1 / ray.x), .y = ray.y == 0 ? 0 : fabs(1/ ray.y) };
+    float perp_wall_dist;
+
+    vector step;
+    bool wall_hit = false;
+    bool x_sided;
+
+    if(ray.x < 0){
+
+        step.x = -1;
+        side_dist.x = (origin.x - start.x) * delta_dist.x;
+
+    }else{
+
+        step.x = 1;
+        side_dist.x = (start.x + 1 - origin.x) * delta_dist.x;
+    }
+    if(ray.y < 0){
+
+        step.y = -1;
+        side_dist.y = (origin.y - start.y) * delta_dist.y;
+
+    }else{
+
+        step.y = 1;
+        side_dist.y = (start.y + 1 - origin.y) * delta_dist.y;
+    }
+
+    while(!wall_hit){
+
+        if(side_dist.x < side_dist.y){
+
+            side_dist.x += delta_dist.x;
+            start.x += step.x;
+            x_sided = true;
+
+        }else{
+
+            side_dist.y += delta_dist.y;
+            start.y += step.y;
+            x_sided = false;
+        }
+
+        int index = (int)start.x + ((int)start.y * state->map_width);
+        wall_hit = state->map[index] || start.x == 0 || start.x == state->map_width || start.y == 0 || start.y == state->map_height;
+    }
+
+    if(x_sided){
+
+        perp_wall_dist = (start.x - origin.x + ((1 - step.x) / 2)) / ray.x;
+
+    }else{
+
+        perp_wall_dist = (start.y - origin.y + ((1 - step.y) / 2)) / ray.y;
+    }
+
+    return perp_wall_dist;
 }
 
 float raycast_get_walldist(State* state, vector origin, vector ray){

@@ -13,6 +13,7 @@ int main(){
 
     State* state = state_init();
     bool input_held[6] = {false, false, false, false, false, false};
+    bool render_preview = false;
 
     bool running = true;
     engine_clock_init();
@@ -57,6 +58,10 @@ int main(){
 
                     state->player_rotate_dir = 1;
                     input_held[5] = true;
+
+                }else if(key == SDLK_F1){
+
+                    render_preview = !render_preview;
                 }
 
             }else if(e.type == SDL_KEYUP){
@@ -92,12 +97,23 @@ int main(){
                     state->player_rotate_dir = -1 * (int)(input_held[4]);
                     input_held[5] = false;
                 }
+
+            }else if(e.type == SDL_MOUSEMOTION){
+
+                state->player_rotate_dir = e.motion.xrel / 5;
             }
         }
 
         float delta = engine_clock_tick();
         state_update(state, delta);
-        engine_render_scene(state);
+        if(render_preview){
+
+            engine_render_preview(state);
+
+        }else{
+
+            engine_render_state(state);
+        }
     }
 
 

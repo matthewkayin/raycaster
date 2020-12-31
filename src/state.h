@@ -9,7 +9,8 @@ typedef struct State{
     vector player_position;
     vector player_move_dir;
     vector player_direction;
-    int player_rotate_dir;
+    vector player_camera;
+    float player_rotate_dir;
 
     bool* map;
     int map_width;
@@ -20,4 +21,5 @@ State* state_init();
 void state_update(State* state, float delta);
 
 vector raycast(State* state, vector origin, vector ray);
+float raycast_dda(State* state, vector origin, vector ray);
 float raycast_get_walldist(State* state, vector origin, vector ray);
