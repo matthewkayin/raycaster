@@ -154,69 +154,6 @@ vector raycast(State* state, vector origin, vector ray){
     return current;
 }
 
-float raycast_dda(State* state, vector origin, vector ray){
-
-    vector start = (vector){ .x = (int)origin.x, .y = (int)origin.y };
-    vector side_dist;
-    vector delta_dist = (vector){ .x = ray.x == 0 ? 0 : fabs(1 / ray.x), .y = ray.y == 0 ? 0 : fabs(1/ ray.y) };
-    float perp_wall_dist;
-
-    vector step;
-    bool wall_hit = false;
-    bool x_sided;
-
-    if(ray.x < 0){
-
-        step.x = -1;
-        side_dist.x = (origin.x - start.x) * delta_dist.x;
-
-    }else{
-
-        step.x = 1;
-        side_dist.x = (start.x + 1 - origin.x) * delta_dist.x;
-    }
-    if(ray.y < 0){
-
-        step.y = -1;
-        side_dist.y = (origin.y - start.y) * delta_dist.y;
-
-    }else{
-
-        step.y = 1;
-        side_dist.y = (start.y + 1 - origin.y) * delta_dist.y;
-    }
-
-    while(!wall_hit){
-
-        if(side_dist.x < side_dist.y){
-
-            side_dist.x += delta_dist.x;
-            start.x += step.x;
-            x_sided = true;
-
-        }else{
-
-            side_dist.y += delta_dist.y;
-            start.y += step.y;
-            x_sided = false;
-        }
-
-        int index = (int)start.x + ((int)start.y * state->map_width);
-        wall_hit = state->map[index] || start.x == 0 || start.x == state->map_width || start.y == 0 || start.y == state->map_height;
-    }
-
-    if(x_sided){
-
-        perp_wall_dist = (start.x - origin.x + ((1 - step.x) / 2)) / ray.x;
-
-    }else{
-
-        perp_wall_dist = (start.y - origin.y + ((1 - step.y) / 2)) / ray.y;
-    }
-
-    return perp_wall_dist;
-}
-
 float raycast_get_walldist(State* state, vector origin, vector ray){
 
     vector wall_point = raycast(state, origin, ray);

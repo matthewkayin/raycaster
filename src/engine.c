@@ -4,9 +4,18 @@
 #include <SDL2/SDL_ttf.h>
 
 #include <stdio.h>
+#include <stdint.h>
 
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
+
+uint32_t* screen_buffer;
+SDL_Texture* screen_buffer_texture;
+SDL_Surface* screen_surface;
+
+const int TEXTURE_SIZE = 64;
+int texture_count;
+uint32_t* texture_banner;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -66,7 +75,22 @@ bool engine_init(){
     }
 
     engine_set_resolution(SCREEN_WIDTH, SCREEN_HEIGHT);
+    screen_surface = SDL_GetWindowSurface(window);
+    screen_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_SetRelativeMouseMode(SDL_TRUE);
+
+    SDL_Surface* loaded_surface = IMG_Load("./res/wolf_banner.png");
+    uint32_t* loaded_surface_pixels = loaded_surface->pixels;
+    texture_banner = (uint32_t*)malloc(sizeof(uint32_t) * TEXTURE_SIZE * TEXTURE_SIZE);
+    for(int i = 0; i < TEXTURE_SIZE * TEXTURE_SIZE; i++){
+
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+        uint8_t a;
+        SDL_GetRGBA(loaded_surface_pixels[i], loaded_surface->format, &r, &g, &b, &a);
+        texture_banner[i] = SDL_MapRGBA(screen_surface->format, r, g, b, a);
+    }
 
     return true;
 }
@@ -171,6 +195,31 @@ void engine_render_fps(){
     engine_render_text(ups_text, COLOR_WHITE, 0, 10);
 }
 
+void engine_put_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b){
+
+    int index = x + (y * SCREEN_WIDTH);
+    screen_buffer[index] = SDL_MapRGBA(screen_surface->format, r, g, b, 255);
+}
+
+void engine_unlock_buffer(){
+
+    void* buffer_pixels;
+    int buffer_pitch;
+    SDL_LockTexture(screen_buffer_texture, NULL, &buffer_pixels, &buffer_pitch);
+    screen_buffer = (uint32_t*)buffer_pixels;
+
+    for(int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++){
+
+        screen_buffer[i] = SDL_MapRGBA(screen_surface->format, 0, 0, 0, 255);
+    }
+}
+
+void engine_render_buffer(){
+
+    SDL_UnlockTexture(screen_buffer_texture);
+    SDL_RenderCopy(renderer, screen_buffer_texture, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT }, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT });
+}
+
 void engine_render_preview(State* state){
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -229,6 +278,19 @@ void engine_render_state(State* state){
 
         SDL_RenderDrawLine(renderer, x, line_start, x, line_end);
     }
+
+
+    engine_unlock_buffer();
+    for(int y = 0; y < 64; y++){
+
+        for(int x = 0; x < 64; x++){
+
+            int dest_index = x + (y * SCREEN_WIDTH);
+            int source_index = x + (y * 64);
+            screen_buffer[dest_index] = texture_banner[source_index];
+        }
+    }
+    engine_render_buffer();
 
     engine_render_fps();
     SDL_RenderPresent(renderer);
