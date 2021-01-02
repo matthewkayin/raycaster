@@ -154,9 +154,14 @@ vector raycast(State* state, vector origin, vector ray){
     return current;
 }
 
-float raycast_get_walldist(State* state, vector origin, vector ray){
+void raycast_get_info(State* state, vector origin, vector ray, float* wall_dist, int* texture_x){
 
     vector wall_point = raycast(state, origin, ray);
+    bool x_sided = wall_point.x == (int)wall_point.x;
+
     vector dist = (vector){ .x = wall_point.x - origin.x, .y = wall_point.y - origin.y };
-    return wall_point.x == (int)wall_point.x ? dist.x / ray.x : dist.y / ray.y;
+    *wall_dist = x_sided ? dist.x / ray.x : dist.y / ray.y;
+
+    int wall_x = (int)((x_sided ? wall_point.y - (int)wall_point.y : wall_point.x - (int)wall_point.x) * 64.0);
+    *texture_x = (x_sided && ray.x > 0) || (!x_sided && ray.y < 0) ? 64 - wall_x - 1 : wall_x;
 }

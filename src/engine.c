@@ -258,11 +258,14 @@ void engine_render_state(State* state){
     SDL_RenderClear(renderer);
 
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    engine_unlock_buffer();
     for(int x = 0; x < SCREEN_WIDTH; x++){
 
         float camera_x = ((2 * x) / (float)SCREEN_WIDTH) - 1;
         vector ray = vector_sum(state->player_direction, vector_mult(state->player_camera, camera_x));
-        float wall_dist = raycast_get_walldist(state, state->player_position, ray);
+        float wall_dist;
+        int texture_x;
+        raycast_get_info(state, state->player_position, ray, &wall_dist, &texture_x);
 
         int line_height = (int)(SCREEN_HEIGHT / wall_dist);
         int line_start = (SCREEN_HEIGHT / 2) - (line_height / 2);
@@ -276,20 +279,18 @@ void engine_render_state(State* state){
             line_end = SCREEN_HEIGHT - 1;
         }
 
-        SDL_RenderDrawLine(renderer, x, line_start, x, line_end);
-    }
+        float step = (1.0 * TEXTURE_SIZE) / line_height;
+        float texture_pos = (line_start - (SCREEN_HEIGHT / 2) + (line_height / 2)) * step;
+        for(int y = line_start; y < line_end; y++){
 
-
-    engine_unlock_buffer();
-    for(int y = 0; y < 64; y++){
-
-        for(int x = 0; x < 64; x++){
-
+            int texture_y = (int)texture_pos & (TEXTURE_SIZE - 1);
+            texture_pos += step;
+            int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
-            int source_index = x + (y * 64);
             screen_buffer[dest_index] = texture_banner[source_index];
         }
     }
+
     engine_render_buffer();
 
     engine_render_fps();
