@@ -12,7 +12,7 @@ typedef struct State{
     vector player_camera;
     float player_rotate_dir;
 
-    bool* map;
+    int* map;
     int map_width;
     int map_height;
 } State;

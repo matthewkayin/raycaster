@@ -15,7 +15,7 @@ SDL_Surface* screen_surface;
 
 const int TEXTURE_SIZE = 64;
 int texture_count;
-uint32_t* texture_banner;
+uint32_t** textures;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -35,6 +35,47 @@ float deltas = 0;
 int frames = 0;
 int fps = 0;
 int ups = 0;
+
+void engine_load_textures(){
+
+    SDL_Surface* loaded_surface = IMG_Load("./res/textures.png");
+    uint32_t* loaded_surface_pixels = loaded_surface->pixels;
+    int texture_count_width = loaded_surface->w / TEXTURE_SIZE;
+    int texture_count_height = loaded_surface->h / TEXTURE_SIZE;
+    texture_count = texture_count_width * texture_count_height;
+
+    textures = (uint32_t**)malloc(sizeof(uint32_t*) * texture_count);
+
+    for(int x = 0; x < texture_count_width; x++){
+
+        for(int y = 0; y < texture_count_height; y++){
+
+            int texture_index = x + (y * texture_count_width);
+            textures[texture_index] = (uint32_t*)malloc(sizeof(uint32_t) * TEXTURE_SIZE * TEXTURE_SIZE);
+
+            int source_base_x = x * TEXTURE_SIZE;
+            int source_base_y = y * TEXTURE_SIZE;
+
+            for(int tx = 0; tx < TEXTURE_SIZE; tx++){
+                for(int ty = 0; ty < TEXTURE_SIZE; ty++){
+
+                    int source_index = source_base_x + tx + ((source_base_y + ty) * loaded_surface->w);
+                    int dest_index = tx + (ty * TEXTURE_SIZE);
+
+                    uint8_t r;
+                    uint8_t g;
+                    uint8_t b;
+                    uint8_t a;
+                    SDL_GetRGBA(loaded_surface_pixels[source_index], loaded_surface->format, &r, &g, &b, &a);
+
+                    textures[texture_index][dest_index] = SDL_MapRGBA(screen_surface->format, r, g, b, a);
+                }
+            }
+        }
+    }
+
+    SDL_FreeSurface(loaded_surface);
+}
 
 bool engine_init(){
 
@@ -79,18 +120,7 @@ bool engine_init(){
     screen_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_SetRelativeMouseMode(SDL_TRUE);
 
-    SDL_Surface* loaded_surface = IMG_Load("./res/wolf_banner.png");
-    uint32_t* loaded_surface_pixels = loaded_surface->pixels;
-    texture_banner = (uint32_t*)malloc(sizeof(uint32_t) * TEXTURE_SIZE * TEXTURE_SIZE);
-    for(int i = 0; i < TEXTURE_SIZE * TEXTURE_SIZE; i++){
-
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-        uint8_t a;
-        SDL_GetRGBA(loaded_surface_pixels[i], loaded_surface->format, &r, &g, &b, &a);
-        texture_banner[i] = SDL_MapRGBA(screen_surface->format, r, g, b, a);
-    }
+    engine_load_textures();
 
     return true;
 }
@@ -282,9 +312,9 @@ void engine_render_state(State* state){
             floor = vector_sum(floor, floor_step);
             int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
-            screen_buffer[dest_index] = (texture_banner[source_index] >> 1) & 8355711;
+            screen_buffer[dest_index] = (textures[1][source_index] >> 1) & 8355711;
             dest_index = x + ((SCREEN_HEIGHT - y - 1) * SCREEN_WIDTH);
-            screen_buffer[dest_index] = (texture_banner[source_index] >> 1) & 8355711;
+            screen_buffer[dest_index] = (textures[1][source_index] >> 1) & 8355711;
         }
     }
 
@@ -318,7 +348,7 @@ void engine_render_state(State* state){
             texture_pos += step;
             int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
-            screen_buffer[dest_index] = x_sided ? texture_banner[source_index] : (texture_banner[source_index] >> 1) & 8355711;
+            screen_buffer[dest_index] = x_sided ? textures[1][source_index] : (textures[1][source_index] >> 1) & 8355711;
         }
     }
 
