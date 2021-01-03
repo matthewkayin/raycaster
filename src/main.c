@@ -100,7 +100,7 @@ int main(){
 
             }else if(e.type == SDL_MOUSEMOTION){
 
-                state->player_rotate_dir = e.motion.xrel / 5;
+                state->player_rotate_dir = e.motion.xrel / 100.0;
             }
         }
 

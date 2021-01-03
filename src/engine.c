@@ -282,9 +282,9 @@ void engine_render_state(State* state){
             floor = vector_sum(floor, floor_step);
             int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
-            screen_buffer[dest_index] = texture_banner[source_index];
+            screen_buffer[dest_index] = (texture_banner[source_index] >> 1) & 8355711;
             dest_index = x + ((SCREEN_HEIGHT - y - 1) * SCREEN_WIDTH);
-            screen_buffer[dest_index] = texture_banner[source_index];
+            screen_buffer[dest_index] = (texture_banner[source_index] >> 1) & 8355711;
         }
     }
 
@@ -295,7 +295,8 @@ void engine_render_state(State* state){
         vector ray = vector_sum(state->player_direction, vector_mult(state->player_camera, camera_x));
         float wall_dist;
         int texture_x;
-        raycast_get_info(state, state->player_position, ray, &wall_dist, &texture_x);
+        bool x_sided;
+        raycast_get_info(state, state->player_position, ray, &wall_dist, &texture_x, &x_sided);
 
         int line_height = (int)(SCREEN_HEIGHT / wall_dist);
         int line_start = (SCREEN_HEIGHT / 2) - (line_height / 2);
@@ -317,7 +318,7 @@ void engine_render_state(State* state){
             texture_pos += step;
             int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
-            screen_buffer[dest_index] = texture_banner[source_index];
+            screen_buffer[dest_index] = x_sided ? texture_banner[source_index] : (texture_banner[source_index] >> 1) & 8355711;
         }
     }
 

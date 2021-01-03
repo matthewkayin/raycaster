@@ -4,7 +4,7 @@
 #include <math.h>
 
 const float PLAYER_SPEED = 0.05;
-const float PLAYER_ROTATE_SPEED = 0.05;
+const float PLAYER_ROTATE_SPEED = 0.5;
 
 State* state_init(){
 
@@ -44,6 +44,7 @@ State* state_init(){
 void state_update(State* state, float delta){
 
     float rotation_amount = PLAYER_ROTATE_SPEED * state->player_rotate_dir * delta;
+    state->player_rotate_dir = 0; // Always reset each frame otherwise they will keep rotating
     state->player_direction = vector_rotate(state->player_direction, rotation_amount);
     state->player_camera = vector_rotate(state->player_camera, rotation_amount);
 
@@ -154,14 +155,14 @@ vector raycast(State* state, vector origin, vector ray){
     return current;
 }
 
-void raycast_get_info(State* state, vector origin, vector ray, float* wall_dist, int* texture_x){
+void raycast_get_info(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided){
 
     vector wall_point = raycast(state, origin, ray);
-    bool x_sided = wall_point.x == (int)wall_point.x;
+    *x_sided = wall_point.x == (int)wall_point.x;
 
     vector dist = (vector){ .x = wall_point.x - origin.x, .y = wall_point.y - origin.y };
-    *wall_dist = x_sided ? dist.x / ray.x : dist.y / ray.y;
+    *wall_dist = *x_sided ? dist.x / ray.x : dist.y / ray.y;
 
-    int wall_x = (int)((x_sided ? wall_point.y - (int)wall_point.y : wall_point.x - (int)wall_point.x) * 64.0);
-    *texture_x = (x_sided && ray.x > 0) || (!x_sided && ray.y < 0) ? 64 - wall_x - 1 : wall_x;
+    int wall_x = (int)((*x_sided ? wall_point.y - (int)wall_point.y : wall_point.x - (int)wall_point.x) * 64.0);
+    *texture_x = (*x_sided && ray.x > 0) || (!*x_sided && ray.y < 0) ? 64 - wall_x - 1 : wall_x;
 }
