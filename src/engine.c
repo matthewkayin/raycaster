@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+const int SCREEN_WIDTH = 640;
+const int SCREEN_HEIGHT = 360;
 
 uint32_t* screen_buffer;
 SDL_Texture* screen_buffer_texture;
@@ -259,6 +259,36 @@ void engine_render_state(State* state){
 
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
     engine_unlock_buffer();
+
+    // Floor casting
+    for(int y = 0; y < SCREEN_HEIGHT; y++){
+
+        vector ray_dir0 = vector_sum(state->player_direction, vector_mult(state->player_camera, -1));
+        vector ray_dir1 = vector_sum(state->player_direction, state->player_camera);
+
+        int p = y - (SCREEN_HEIGHT / 2);
+        float z_pos = 0.5 * SCREEN_HEIGHT;
+        float row_dist = z_pos / p;
+
+        vector floor_step = vector_mult(vector_sum(ray_dir1, vector_mult(ray_dir0, -1)), row_dist / SCREEN_WIDTH);
+        vector floor = vector_sum(state->player_position, vector_mult(ray_dir0, row_dist));
+
+        for(int x = 0; x < SCREEN_WIDTH; ++x){
+
+            vector cell = (vector){ .x = (int)floor.x, .y = (int)floor.y };
+            int texture_x = (int)(TEXTURE_SIZE * (floor.x - cell.x)) & (TEXTURE_SIZE - 1);
+            int texture_y = (int)(TEXTURE_SIZE * (floor.y - cell.y)) & (TEXTURE_SIZE - 1);
+
+            floor = vector_sum(floor, floor_step);
+            int source_index = texture_x + (texture_y * TEXTURE_SIZE);
+            int dest_index = x + (y * SCREEN_WIDTH);
+            screen_buffer[dest_index] = texture_banner[source_index];
+            dest_index = x + ((SCREEN_HEIGHT - y - 1) * SCREEN_WIDTH);
+            screen_buffer[dest_index] = texture_banner[source_index];
+        }
+    }
+
+    // Wall casting
     for(int x = 0; x < SCREEN_WIDTH; x++){
 
         float camera_x = ((2 * x) / (float)SCREEN_WIDTH) - 1;
