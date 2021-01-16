@@ -11,36 +11,11 @@ State* state_init(){
 
     State* new_state = (State*)malloc(sizeof(State));
 
-    int map_walls[300] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-
-    new_state->map_width = 20;
-    new_state->map_height = 15;
-    new_state->map = (int*)malloc(sizeof(int) * (new_state->map_width * new_state->map_height));
-
-    for(int i = 0; i < new_state->map_width; i++){
-
-        for(int j = 0; j < new_state->map_height; j++){
-
-            int index = i + (j * new_state->map_width);
-            new_state->map[index] = map_walls[index];
-        }
-    }
-
-    new_state->map[1 + new_state->map_width] = true;
+    new_state->map = NULL;
+    new_state->map_ceil = NULL;
+    new_state->map_floor = NULL;
+    new_state->map_width = 0;
+    new_state->map_height = 0;
 
     new_state->player_position = (vector){ .x = 2.5, .y = 2.5 };
     new_state->player_move_dir = ZERO_VECTOR;

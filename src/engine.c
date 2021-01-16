@@ -197,18 +197,36 @@ void engine_state_load_map(State* state, const char* path){
         (SDL_Color){ .r = 0, .g = 0, .b = 255, .a = 255 }
     };
 
-    SDL_Surface* map_source = IMG_Load(path);
+    char path_buffer[256];
+    strcpy(path_buffer, path);
+    strcat(path_buffer, ".png");
+    SDL_Surface* map_source = IMG_Load(path_buffer);
+
+    strcpy(path_buffer, path);
+    strcat(path_buffer, "_ceil.png");
+    SDL_Surface* map_ceil_source = IMG_Load(path_buffer);
+
+    strcpy(path_buffer, path);
+    strcat(path_buffer, "_floor.png");
+    SDL_Surface* map_floor_source = IMG_Load(path_buffer);
+
     uint32_t* map_pixels = map_source->pixels;
+    uint32_t* map_ceil_pixels = map_ceil_source->pixels;
+    uint32_t* map_floor_pixels = map_floor_source->pixels;
+
     int map_width = map_source->w;
     int map_height = map_source->h;
     int map_size = map_width * map_height;
 
     state->map = (int*)malloc(sizeof(int) * map_size);
+    state->map_ceil = (int*)malloc(sizeof(int) * map_size);
+    state->map_floor = (int*)malloc(sizeof(int) * map_size);
     state->map_width = map_width;
     state->map_height = map_height;
 
     for(int i = 0; i < map_size; i++){
 
+        // Set wall
         uint8_t r;
         uint8_t g;
         uint8_t b;
@@ -252,7 +270,60 @@ void engine_state_load_map(State* state, const char* path){
         }
     }
 
+    for(int i = 0; i < map_size; i++){
+
+        // Set ceiling
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+        uint8_t a;
+        SDL_GetRGBA(map_ceil_pixels[i], map_ceil_source->format, &r, &g, &b, &a);
+
+        bool set_value = false;
+        for(int j = 0; j < 2; j++){
+
+            if(r == wall_colors[j].r && g == wall_colors[j].g && b == wall_colors[j].b){
+
+                state->map_ceil[i] = j;
+                set_value = true;
+                break;
+            }
+        }
+
+        if(!set_value){
+
+            int x = i % map_width;
+            int y = (int)(i / map_width);
+            state->map_ceil[i] = 0;
+            printf("Error generating ceiling map! Color of (%i, %i, %i) at position (%i, %i) has no match!\n", r, g, b, x, y);
+        }
+
+        // Set floor
+        SDL_GetRGBA(map_floor_pixels[i], map_floor_source->format, &r, &g, &b, &a);
+
+        set_value = false;
+        for(int j = 0; j < 2; j++){
+
+            if(r == wall_colors[j].r && g == wall_colors[j].g && b == wall_colors[j].b){
+
+                state->map_floor[i] = j;
+                set_value = true;
+                break;
+            }
+        }
+
+        if(!set_value){
+
+            int x = i % map_width;
+            int y = (int)(i / map_width);
+            state->map_floor[i] = 0;
+            printf("Error generating ceiling map! Color of (%i, %i, %i) at position (%i, %i) has no match!\n", r, g, b, x, y);
+        }
+    }
+
     SDL_FreeSurface(map_source);
+    SDL_FreeSurface(map_ceil_source);
+    SDL_FreeSurface(map_floor_source);
 }
 
 void engine_render_text(const char* text, SDL_Color color, int x, int y){
@@ -375,11 +446,15 @@ void engine_render_state(State* state){
             int texture_y = (int)(TEXTURE_SIZE * (floor.y - cell.y)) & (TEXTURE_SIZE - 1);
 
             floor = vector_sum(floor, floor_step);
-            int source_index = texture_x + (texture_y * TEXTURE_SIZE);
-            int dest_index = x + (y * SCREEN_WIDTH);
-            screen_buffer[dest_index] = (textures[1][source_index] >> 1) & 8355711;
-            dest_index = x + ((SCREEN_HEIGHT - y - 1) * SCREEN_WIDTH);
-            screen_buffer[dest_index] = (textures[1][source_index] >> 1) & 8355711;
+            if(cell.x >= 0 && cell.x <= state->map_width - 1 && cell.y >= 0 && cell.y <= state->map_height - 1){
+
+                int floor_index = cell.x + (cell.y * state->map_width);
+                int source_index = texture_x + (texture_y * TEXTURE_SIZE);
+                int dest_index = x + (y * SCREEN_WIDTH);
+                screen_buffer[dest_index] = (textures[state->map_floor[floor_index]][source_index] >> 1) & 8355711;
+                dest_index = x + ((SCREEN_HEIGHT - y - 1) * SCREEN_WIDTH);
+                screen_buffer[dest_index] = (textures[state->map_ceil[floor_index]][source_index] >> 1) & 8355711;
+            }
         }
     }
 

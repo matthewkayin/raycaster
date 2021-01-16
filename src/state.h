@@ -13,6 +13,8 @@ typedef struct State{
     float player_rotate_dir;
 
     int* map;
+    int* map_ceil;
+    int* map_floor;
     int map_width;
     int map_height;
 } State;
