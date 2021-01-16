@@ -190,6 +190,71 @@ float engine_clock_tick(){
     return delta;
 }
 
+void engine_state_load_map(State* state, const char* path){
+
+    static SDL_Color wall_colors[2] = {
+        (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 },
+        (SDL_Color){ .r = 0, .g = 0, .b = 255, .a = 255 }
+    };
+
+    SDL_Surface* map_source = IMG_Load(path);
+    uint32_t* map_pixels = map_source->pixels;
+    int map_width = map_source->w;
+    int map_height = map_source->h;
+    int map_size = map_width * map_height;
+
+    state->map = (int*)malloc(sizeof(int) * map_size);
+    state->map_width = map_width;
+    state->map_height = map_height;
+
+    for(int i = 0; i < map_size; i++){
+
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+        uint8_t a;
+        SDL_GetRGBA(map_pixels[i], map_source->format, &r, &g, &b, &a);
+
+        // Empty wall
+        if(r == 255 && g == 255 && b == 255){
+
+            state->map[i] = 0;
+            continue;
+
+        // Player spawn
+        }else if(r == 0 && g == 255 && b == 0){
+
+            state->map[i] = 0;
+            int x = i % map_width;
+            int y = (int)(i / map_width);
+            state->player_position = (vector){ .x = x + 0.5, .y = y + 0.5 };
+            continue;
+        }
+
+        // Wall textures
+        bool set_value = false;
+        for(int j = 0; j < 2; j++){
+
+            if(r == wall_colors[j].r && g == wall_colors[j].g && b == wall_colors[j].b){
+
+                state->map[i] = j + 1;
+                set_value = true;
+                break;
+            }
+        }
+
+        if(!set_value){
+
+            int x = i % map_width;
+            int y = (int)(i / map_width);
+            state->map[i] = 0;
+            printf("Error generating map! Color of (%i, %i, %i) at position (%i, %i) has no match!\n", r, g, b, x, y);
+        }
+    }
+
+    SDL_FreeSurface(map_source);
+}
+
 void engine_render_text(const char* text, SDL_Color color, int x, int y){
 
     SDL_Surface* text_surface = TTF_RenderText_Solid(font_small, text, color);
@@ -326,7 +391,8 @@ void engine_render_state(State* state){
         float wall_dist;
         int texture_x;
         bool x_sided;
-        raycast_get_info(state, state->player_position, ray, &wall_dist, &texture_x, &x_sided);
+        int texture;
+        raycast(state, state->player_position, ray, &wall_dist, &texture_x, &x_sided, &texture);
 
         int line_height = (int)(SCREEN_HEIGHT / wall_dist);
         int line_start = (SCREEN_HEIGHT / 2) - (line_height / 2);
@@ -348,7 +414,7 @@ void engine_render_state(State* state){
             texture_pos += step;
             int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
-            screen_buffer[dest_index] = x_sided ? textures[1][source_index] : (textures[1][source_index] >> 1) & 8355711;
+            screen_buffer[dest_index] = x_sided ? textures[texture - 1][source_index] : (textures[texture - 1][source_index] >> 1) & 8355711;
         }
     }
 

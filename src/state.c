@@ -1,6 +1,7 @@
 #include "state.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 
 const float PLAYER_SPEED = 0.05;
@@ -65,12 +66,14 @@ void state_update(State* state, float delta){
     }
 }
 
-bool hits_wall(State* state, vector v){
+int hits_wall(State* state, vector v){
 
+    /*
     if(v.x == 0 || v.x == state->map_width || v.y == 0 || v.y == state->map_height){
 
         return true;
     }
+    */
 
     bool x_is_int = v.x == (int)v.x;
     bool y_is_int = v.y == (int)v.y;
@@ -95,19 +98,20 @@ bool hits_wall(State* state, vector v){
             int index = points[i].x + (points[i].y * state->map_width);
             if(state->map[index]){
 
-                return true;
+                return state->map[index];
             }
         }
     }
 
-    return false;
+    return -1;
 }
 
-vector raycast(State* state, vector origin, vector ray){
+void raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture){
 
     vector current = origin;
 
-    while(!hits_wall(state, current)){
+    int wall_hit = hits_wall(state, current);
+    while(wall_hit == -1){
 
         vector x_step = ZERO_VECTOR;
         vector y_step = ZERO_VECTOR;
@@ -159,19 +163,16 @@ vector raycast(State* state, vector origin, vector ray){
             vector step = x_dist <= y_dist ? x_step : y_step;
             current = vector_sum(current, step);
         }
+
+        wall_hit = hits_wall(state, current);
     } // End while
 
-    return current;
-}
+    *texture = wall_hit;
+    *x_sided = current.x == (int)current.x;
 
-void raycast_get_info(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided){
-
-    vector wall_point = raycast(state, origin, ray);
-    *x_sided = wall_point.x == (int)wall_point.x;
-
-    vector dist = (vector){ .x = wall_point.x - origin.x, .y = wall_point.y - origin.y };
+    vector dist = (vector){ .x = current.x - origin.x, .y = current.y - origin.y };
     *wall_dist = *x_sided ? dist.x / ray.x : dist.y / ray.y;
 
-    int wall_x = (int)((*x_sided ? wall_point.y - (int)wall_point.y : wall_point.x - (int)wall_point.x) * 64.0);
+    int wall_x = (int)((*x_sided ? current.y - (int)current.y : current.x - (int)current.x) * 64.0);
     *texture_x = (*x_sided && ray.x > 0) || (!*x_sided && ray.y < 0) ? 64 - wall_x - 1 : wall_x;
 }

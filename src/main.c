@@ -15,6 +15,8 @@ int main(){
     bool input_held[6] = {false, false, false, false, false, false};
     bool render_preview = false;
 
+    engine_state_load_map(state, "./res/map.png");
+
     bool running = true;
     engine_clock_init();
     while(running){
