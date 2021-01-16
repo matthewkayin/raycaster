@@ -51,6 +51,12 @@ State* state_init(){
     return new_state;
 }
 
+bool in_wall(State* state, vector v){
+
+    int index = (int)v.x + ((int)v.y * state->map_width);
+    return state->map[index] != 0;
+}
+
 void state_update(State* state, float delta){
 
     float rotation_amount = PLAYER_ROTATE_SPEED * state->player_rotate_dir * delta;
@@ -62,7 +68,23 @@ void state_update(State* state, float delta){
 
         float angle = atan2(-state->player_move_dir.y, -state->player_move_dir.x) - (PI / 2);
         vector player_velocity = vector_scale(vector_rotate(state->player_direction, angle), PLAYER_SPEED);
+        vector player_last_pos = state->player_position;
         state->player_position = vector_sum(state->player_position, vector_mult(player_velocity, delta));
+
+        if(in_wall(state, state->player_position)){
+
+            bool x_caused = in_wall(state, vector_sum(player_last_pos, (vector){ .x = player_velocity.x, .y = 0 }));
+            bool y_caused = in_wall(state, vector_sum(player_last_pos, (vector){ .x = 0, .y = player_velocity.y }));
+
+            if(x_caused){
+
+                state->player_position.x = player_last_pos.x;
+            }
+            if(y_caused){
+
+                state->player_position.y = player_last_pos.y;
+            }
+        }
     }
 }
 
