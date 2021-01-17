@@ -24,6 +24,11 @@ float vector_magnitude(vector a){
     return (a.x * a.x) + (a.y * a.y);
 }
 
+float vector_distance(vector a, vector b){
+
+    return sqrt(((b.x - a.x) * (b.x - a.x)) + ((b.y - a.y) * (b.y - a.y)));
+}
+
 vector vector_scale(vector a, float b){
 
     float old_magnitude = vector_magnitude(a);
@@ -39,6 +44,46 @@ vector vector_scale(vector a, float b){
 vector vector_rotate(vector a, float b){
 
     return (vector){ .x = (a.x * cos(b)) - (a.y * sin(b)), .y = (a.x * sin(b)) + (a.y * cos(b)) };
+}
+
+int partition(float** array, int low, int high){
+
+    int pivot = array[high][1];
+    int i = low - 1;
+
+    for(int j = low; j <= high - 1; j++){
+
+        if(array[j][1] < pivot){
+
+            i++;
+            int temp_key = array[i][0];
+            int temp_val = array[i][1];
+            array[i][0] = array[j][0];
+            array[i][1] = array[j][1];
+            array[j][0] = temp_key;
+            array[j][1] = temp_val;
+        }
+    }
+
+    int temp_key = array[i + 1][0];
+    int temp_val = array[i + 1][1];
+    array[i + 1][0] = array[high][0];
+    array[i + 1][1] = array[high][1];
+    array[high][0] = temp_key;
+    array[high][1] = temp_val;
+
+    return i + 1;
+}
+
+void quicksort(float** array, int low, int high){
+
+    if(low < high){
+
+        int pi = partition(array, low, high);
+
+        quicksort(array, low, pi - 1);
+        quicksort(array, pi + 1, high);
+    }
 }
 
 int max(int a, int b){

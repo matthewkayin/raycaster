@@ -23,6 +23,12 @@ State* state_init(){
     new_state->player_camera = (vector){ .x = 0.66, .y = 0 };
     new_state->player_rotate_dir = 0;
 
+    new_state->sprites = (sprite*)malloc(sizeof(sprite) * 3);
+    new_state->sprite_count = 3;
+    new_state->sprites[0] = (sprite){ .image = 9, .position = (vector){ .x = 2.5, .y = 6.5 }};
+    new_state->sprites[1] = (sprite){ .image = 9, .position = (vector){ .x = 6.5, .y = 5.5 }};
+    new_state->sprites[2] = (sprite){ .image = 9, .position = (vector){ .x = 8.5, .y = 4.5 }};
+
     return new_state;
 }
 

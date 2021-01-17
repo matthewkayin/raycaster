@@ -9,6 +9,8 @@
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 360;
 
+float z_buffer[640];
+
 uint32_t* screen_buffer;
 SDL_Texture* screen_buffer_texture;
 SDL_Surface* screen_surface;
@@ -468,6 +470,7 @@ void engine_render_state(State* state){
         bool x_sided;
         int texture;
         raycast(state, state->player_position, ray, &wall_dist, &texture_x, &x_sided, &texture);
+        z_buffer[x] = wall_dist;
 
         int line_height = (int)(SCREEN_HEIGHT / wall_dist);
         int line_start = (SCREEN_HEIGHT / 2) - (line_height / 2);
@@ -490,6 +493,70 @@ void engine_render_state(State* state){
             int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
             screen_buffer[dest_index] = x_sided ? textures[texture - 1][source_index] : (textures[texture - 1][source_index] >> 1) & 8355711;
+        }
+    }
+
+    // Sprite casting
+    float** sprite_distances = (float**)malloc(sizeof(float*) * state->sprite_count);
+    for(int i = 0; i < state->sprite_count; i++){
+
+        sprite_distances[i] = (float*)malloc(sizeof(float) * 2);
+        sprite_distances[i][0] = i;
+        sprite_distances[i][1] = vector_distance(state->player_position, state->sprites[i].position);
+    }
+    quicksort(sprite_distances, 0, state->sprite_count - 1);
+
+    vector minus_player_pos = vector_mult(state->player_position, -1);
+    for(int i = state->sprite_count - 1; i >= 0; i--){
+
+        vector sprite_render_pos = vector_sum(state->sprites[(int)sprite_distances[i][0]].position, minus_player_pos);
+        float inverse_determinate = 1.0 / ((state->player_camera.x * state->player_direction.y) - (state->player_direction.x * state->player_camera.y));
+        vector transform = (vector){ .x = (state->player_direction.y * sprite_render_pos.x) - (state->player_direction.x * sprite_render_pos.y), .y = (-state->player_camera.y * sprite_render_pos.x) + (state->player_camera.x * sprite_render_pos.y) };
+        transform = vector_mult(transform, inverse_determinate);
+
+        int sprite_screen_x = (int)((SCREEN_WIDTH / 2) * (1 + (transform.x / transform.y)));
+        int sprite_height = abs((int)(SCREEN_HEIGHT / transform.y));
+        int sprite_start_y = (SCREEN_HEIGHT / 2) - (sprite_height / 2);
+        int sprite_end_y = (SCREEN_HEIGHT / 2) + (sprite_height / 2);
+        if(sprite_start_y < 0){
+
+            sprite_start_y = 0;
+        }
+        if(sprite_end_y >= SCREEN_HEIGHT){
+
+            sprite_end_y = SCREEN_HEIGHT - 1;
+        }
+
+        int sprite_width = abs((int)(SCREEN_HEIGHT / transform.y));
+        int sprite_start_x = sprite_screen_x - (sprite_width / 2);
+        int sprite_end_x = sprite_screen_x + (sprite_width / 2);
+        if(sprite_start_x < 0){
+
+            sprite_start_x = 0;
+        }
+        if(sprite_end_x >= SCREEN_WIDTH){
+
+            sprite_end_x = SCREEN_WIDTH - 1;
+        }
+
+        for(int stripe = sprite_start_x; stripe < sprite_end_x; stripe++){
+
+            int texture_x = (int)((stripe - (sprite_screen_x - (sprite_width / 2))) * TEXTURE_SIZE / sprite_width);
+            if(transform.y > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transform.y < z_buffer[stripe]){
+
+                for(int y = sprite_start_y; y < sprite_end_y; y++){
+
+                    int d = y - (SCREEN_HEIGHT / 2) + (sprite_height / 2);
+                    int texture_y = (int)((d * TEXTURE_SIZE) / sprite_height);
+                    int soruce_index = texture_x + (texture_y * TEXTURE_SIZE);
+                    int dest_index = stripe + (y * SCREEN_WIDTH);
+                    uint32_t color = textures[state->sprites[(int)sprite_distances[i][0]].image][soruce_index];
+                    if((color & 0x00FFFFFF) != 0){
+
+                        screen_buffer[dest_index] = color;
+                    }
+                }
+            }
         }
     }
 

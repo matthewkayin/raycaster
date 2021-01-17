@@ -4,6 +4,12 @@
 
 #include <stdbool.h>
 
+typedef struct sprite{
+
+    int image;
+    vector position;
+} sprite;
+
 typedef struct State{
 
     vector player_position;
@@ -17,6 +23,9 @@ typedef struct State{
     int* map_floor;
     int map_width;
     int map_height;
+
+    sprite* sprites;
+    int sprite_count;
 } State;
 
 State* state_init();
