@@ -25,9 +25,9 @@ State* state_init(){
 
     new_state->sprites = (sprite*)malloc(sizeof(sprite) * 3);
     new_state->sprite_count = 3;
-    new_state->sprites[0] = (sprite){ .image = 9, .position = (vector){ .x = 2.5, .y = 6.5 }};
-    new_state->sprites[1] = (sprite){ .image = 9, .position = (vector){ .x = 6.5, .y = 5.5 }};
-    new_state->sprites[2] = (sprite){ .image = 9, .position = (vector){ .x = 8.5, .y = 4.5 }};
+    new_state->sprites[0] = (sprite){ .image = 0, .position = (vector){ .x = 2.5, .y = 6.5 }};
+    new_state->sprites[1] = (sprite){ .image = 0, .position = (vector){ .x = 6.5, .y = 5.5 }};
+    new_state->sprites[2] = (sprite){ .image = 0, .position = (vector){ .x = 8.5, .y = 4.5 }};
 
     return new_state;
 }
