@@ -103,6 +103,13 @@ int main(){
             }else if(e.type == SDL_MOUSEMOTION){
 
                 state->player_rotate_dir = e.motion.xrel / 100.0;
+
+            }else if(e.type == SDL_MOUSEBUTTONDOWN){
+
+                if(e.button.button == SDL_BUTTON_LEFT){
+
+                    player_shoot(state);
+                }
             }
         }
 

@@ -18,9 +18,9 @@ SDL_Surface* screen_surface;
 const int TEXTURE_SIZE = 64;
 int texture_count;
 uint32_t** textures;
-int object_sprite_count;
-uint32_t** object_sprites;
-SDL_Rect* object_sprite_regions;
+int sprite_image_count;
+uint32_t** sprite_images;
+SDL_Rect* sprite_image_regions;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -171,8 +171,8 @@ bool engine_init(){
     COLOR_TRANSPARENT = SDL_MapRGBA(screen_surface->format, 0, 0, 0, 0);
 
     engine_spritesheet_load(&textures, &texture_count, "./res/textures.png");
-    engine_spritesheet_load(&object_sprites, &object_sprite_count, "./res/sprites.png");
-    engine_spritesheet_find_regions(object_sprites, &object_sprite_regions, object_sprite_count);
+    engine_spritesheet_load(&sprite_images, &sprite_image_count, "./res/sprites.png");
+    engine_spritesheet_find_regions(sprite_images, &sprite_image_regions, sprite_image_count);
 
     return true;
 }
@@ -547,19 +547,19 @@ void engine_render_state(State* state){
     }
 
     // Sprite casting
-    float** sprite_distances = (float**)malloc(sizeof(float*) * state->object_count);
-    for(int i = 0; i < state->object_count; i++){
+    float** sprite_distances = (float**)malloc(sizeof(float*) * state->sprite_count);
+    for(int i = 0; i < state->sprite_count; i++){
 
         sprite_distances[i] = (float*)malloc(sizeof(float) * 2);
         sprite_distances[i][0] = i;
-        sprite_distances[i][1] = vector_distance(state->player_position, state->objects[i].position);
+        sprite_distances[i][1] = vector_distance(state->player_position, state->sprites[i].position);
     }
-    quicksort(sprite_distances, 0, state->object_count - 1);
+    quicksort(sprite_distances, 0, state->sprite_count - 1);
 
     vector minus_player_pos = vector_mult(state->player_position, -1);
-    for(int i = state->object_count - 1; i >= 0; i--){
+    for(int i = state->sprite_count - 1; i >= 0; i--){
 
-        vector sprite_render_pos = vector_sum(state->objects[(int)sprite_distances[i][0]].position, minus_player_pos);
+        vector sprite_render_pos = vector_sum(state->sprites[(int)sprite_distances[i][0]].position, minus_player_pos);
         float inverse_determinate = 1.0 / ((state->player_camera.x * state->player_direction.y) - (state->player_direction.x * state->player_camera.y));
         vector transform = (vector){ .x = (state->player_direction.y * sprite_render_pos.x) - (state->player_direction.x * sprite_render_pos.y), .y = (-state->player_camera.y * sprite_render_pos.x) + (state->player_camera.x * sprite_render_pos.y) };
         transform = vector_mult(transform, inverse_determinate);
@@ -589,7 +589,7 @@ void engine_render_state(State* state){
             sprite_end_x = SCREEN_WIDTH - 1;
         }
 
-        int sprite_index = state->objects[(int)sprite_distances[i][0]].image;
+        int sprite_index = state->sprites[(int)sprite_distances[i][0]].image;
         // SDL_Rect region = object_sprite_regions[sprite_index];
         for(int stripe = sprite_start_x; stripe < sprite_end_x; stripe++){
 
@@ -614,7 +614,7 @@ void engine_render_state(State* state){
                     */
                     int soruce_index = texture_x + (texture_y * TEXTURE_SIZE);
                     int dest_index = stripe + (y * SCREEN_WIDTH);
-                    uint32_t color = object_sprites[sprite_index][soruce_index];
+                    uint32_t color = sprite_images[sprite_index][soruce_index];
                     if(color != COLOR_TRANSPARENT){
 
                         screen_buffer[dest_index] = color;

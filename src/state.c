@@ -23,11 +23,26 @@ State* state_init(){
     new_state->player_camera = (vector){ .x = 0.66, .y = 0 };
     new_state->player_rotate_dir = 0;
 
-    new_state->objects = (sprite*)malloc(sizeof(sprite) * 3);
-    new_state->object_count = 3;
-    new_state->objects[0] = (sprite){ .image = 0, .position = (vector){ .x = 2.5, .y = 6.5 }};
-    new_state->objects[1] = (sprite){ .image = 0, .position = (vector){ .x = 6.5, .y = 5.5 }};
-    new_state->objects[2] = (sprite){ .image = 0, .position = (vector){ .x = 8.5, .y = 4.5 }};
+    new_state->sprite_capacity = 10;
+    new_state->sprites = (sprite*)malloc(sizeof(sprite) * new_state->sprite_capacity);
+    sprite_create(new_state, (sprite){
+            .image = 0,
+            .type = SPRITE_OBJECT,
+            .position = (vector){ .x = 2.5, .y = 6.5 },
+            .velocity = ZERO_VECTOR
+    });
+    sprite_create(new_state, (sprite){
+            .image = 0,
+            .type = SPRITE_OBJECT,
+            .position = (vector){ .x = 6.5, .y = 5.5 },
+            .velocity = ZERO_VECTOR
+    });
+    sprite_create(new_state, (sprite){
+            .image = 0,
+            .type = SPRITE_OBJECT,
+            .position = (vector){ .x = 8.5, .y = 4.5 },
+            .velocity = ZERO_VECTOR
+    });
 
     return new_state;
 }
@@ -75,12 +90,12 @@ void state_update(State* state, float delta){
         }
 
         // Check player object collisions
-        for(int i = 0; i < state->object_count; i++){
+        for(int i = 0; i < state->sprite_count; i++){
 
-            if(vector_distance(state->player_position, state->objects[i].position) <= 0.2){
+            if(vector_distance(state->player_position, state->sprites[i].position) <= 0.2){
 
-                bool x_caused = vector_distance(vector_sum(player_last_pos, player_velocity_x_component), state->objects[i].position) <= 0.2;
-                bool y_caused = vector_distance(vector_sum(player_last_pos, player_velocity_y_component), state->objects[i].position) <= 0.2;
+                bool x_caused = vector_distance(vector_sum(player_last_pos, player_velocity_x_component), state->sprites[i].position) <= 0.2;
+                bool y_caused = vector_distance(vector_sum(player_last_pos, player_velocity_y_component), state->sprites[i].position) <= 0.2;
 
                 if(x_caused){
 
@@ -93,6 +108,60 @@ void state_update(State* state, float delta){
             }
         }
     }
+
+    // Sprite movement
+    for(int i = 0; i < state->sprite_count; i++){
+
+        if(state->sprites[i].velocity.x != 0 || state->sprites[i].velocity.y != 0){
+
+            state->sprites[i].position = vector_sum(state->sprites[i].position, state->sprites[i].velocity);
+
+            if(state->sprites[i].type == SPRITE_PROJECTILE){
+
+                if(in_wall(state, state->sprites[i].position)){
+
+                    sprite_delete(state, i);
+                }
+            }
+        }
+    }
+}
+
+void player_shoot(State* state){
+
+    sprite_create(state, (sprite){
+            .image = 3,
+            .type = SPRITE_PROJECTILE,
+            .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3)),
+            .velocity = vector_scale(state->player_direction, 0.1),
+    });
+}
+
+void sprite_create(State* state, sprite to_create){
+
+    if(state->sprite_count == state->sprite_capacity){
+
+        state->sprite_capacity *= 2;
+        state->sprites = (sprite*)realloc(state->sprites, sizeof(sprite) * state->sprite_capacity);
+    }
+
+    state->sprites[state->sprite_count] = to_create;
+    state->sprite_count++;
+}
+
+void sprite_delete(State* state, int index){
+
+    if(index >= state->sprite_count){
+
+        printf("Error! Tried to delete projectile index of %i; index out of bounds\n", index);
+        return;
+    }
+
+    for(int i = index; i < state->sprite_count - 1; i++){
+
+        state->sprites[i] = state->sprites[i + 1];
+    }
+    state->sprite_count--;
 }
 
 int hits_wall(State* state, vector v){

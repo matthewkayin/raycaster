@@ -4,11 +4,16 @@
 
 #include <stdbool.h>
 
+static const int SPRITE_OBJECT = 0;
+static const int SPRITE_PROJECTILE = 1;
+
 // Represents any 2d image rendered in the world
 typedef struct sprite{
 
     int image;
+    int type;
     vector position;
+    vector velocity;
 } sprite;
 
 typedef struct State{
@@ -25,11 +30,17 @@ typedef struct State{
     int map_width;
     int map_height;
 
-    sprite* objects;
-    int object_count;
+    sprite* sprites;
+    int sprite_count;
+    int sprite_capacity;
 } State;
 
 State* state_init();
 void state_update(State* state, float delta);
+
+void player_shoot(State* state);
+
+void sprite_create(State* state, sprite to_create);
+void sprite_delete(State* state, int index);
 
 void raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture);
