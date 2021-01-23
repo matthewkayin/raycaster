@@ -23,11 +23,11 @@ State* state_init(){
     new_state->player_camera = (vector){ .x = 0.66, .y = 0 };
     new_state->player_rotate_dir = 0;
 
-    new_state->sprites = (sprite*)malloc(sizeof(sprite) * 3);
-    new_state->sprite_count = 3;
-    new_state->sprites[0] = (sprite){ .image = 0, .position = (vector){ .x = 2.5, .y = 6.5 }};
-    new_state->sprites[1] = (sprite){ .image = 0, .position = (vector){ .x = 6.5, .y = 5.5 }};
-    new_state->sprites[2] = (sprite){ .image = 0, .position = (vector){ .x = 8.5, .y = 4.5 }};
+    new_state->objects = (sprite*)malloc(sizeof(sprite) * 3);
+    new_state->object_count = 3;
+    new_state->objects[0] = (sprite){ .image = 0, .position = (vector){ .x = 2.5, .y = 6.5 }};
+    new_state->objects[1] = (sprite){ .image = 0, .position = (vector){ .x = 6.5, .y = 5.5 }};
+    new_state->objects[2] = (sprite){ .image = 0, .position = (vector){ .x = 8.5, .y = 4.5 }};
 
     return new_state;
 }
@@ -40,22 +40,29 @@ bool in_wall(State* state, vector v){
 
 void state_update(State* state, float delta){
 
+    // Rotate player and player camera
     float rotation_amount = PLAYER_ROTATE_SPEED * state->player_rotate_dir * delta;
     state->player_rotate_dir = 0; // Always reset each frame otherwise they will keep rotating
     state->player_direction = vector_rotate(state->player_direction, rotation_amount);
     state->player_camera = vector_rotate(state->player_camera, rotation_amount);
 
+    // Player movement
     if(state->player_move_dir.x != 0 || state->player_move_dir.y != 0){
 
-        float angle = atan2(-state->player_move_dir.y, -state->player_move_dir.x) - (PI / 2);
-        vector player_velocity = vector_scale(vector_rotate(state->player_direction, angle), PLAYER_SPEED);
+        // Move player
+        float move_angle = atan2(-state->player_move_dir.y, -state->player_move_dir.x) - (PI / 2);
+        vector player_velocity = vector_scale(vector_rotate(state->player_direction, move_angle), PLAYER_SPEED);
         vector player_last_pos = state->player_position;
         state->player_position = vector_sum(state->player_position, vector_mult(player_velocity, delta));
 
+        // Collisions
+        vector player_velocity_x_component = (vector){ .x = player_velocity.x, .y = 0 };
+        vector player_velocity_y_component = (vector){ .x = 0, .y = player_velocity.y };
+
         if(in_wall(state, state->player_position)){
 
-            bool x_caused = in_wall(state, vector_sum(player_last_pos, (vector){ .x = player_velocity.x, .y = 0 }));
-            bool y_caused = in_wall(state, vector_sum(player_last_pos, (vector){ .x = 0, .y = player_velocity.y }));
+            bool x_caused = in_wall(state, vector_sum(player_last_pos, player_velocity_x_component));
+            bool y_caused = in_wall(state, vector_sum(player_last_pos, player_velocity_y_component));
 
             if(x_caused){
 
@@ -64,6 +71,25 @@ void state_update(State* state, float delta){
             if(y_caused){
 
                 state->player_position.y = player_last_pos.y;
+            }
+        }
+
+        // Check player object collisions
+        for(int i = 0; i < state->object_count; i++){
+
+            if(vector_distance(state->player_position, state->objects[i].position) <= 0.2){
+
+                bool x_caused = vector_distance(vector_sum(player_last_pos, player_velocity_x_component), state->objects[i].position) <= 0.2;
+                bool y_caused = vector_distance(vector_sum(player_last_pos, player_velocity_y_component), state->objects[i].position) <= 0.2;
+
+                if(x_caused){
+
+                    state->player_position.x = player_last_pos.x;
+                }
+                if(y_caused){
+
+                    state->player_position.y = player_last_pos.y;
+                }
             }
         }
     }

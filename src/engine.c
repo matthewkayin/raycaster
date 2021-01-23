@@ -547,19 +547,19 @@ void engine_render_state(State* state){
     }
 
     // Sprite casting
-    float** sprite_distances = (float**)malloc(sizeof(float*) * state->sprite_count);
-    for(int i = 0; i < state->sprite_count; i++){
+    float** sprite_distances = (float**)malloc(sizeof(float*) * state->object_count);
+    for(int i = 0; i < state->object_count; i++){
 
         sprite_distances[i] = (float*)malloc(sizeof(float) * 2);
         sprite_distances[i][0] = i;
-        sprite_distances[i][1] = vector_distance(state->player_position, state->sprites[i].position);
+        sprite_distances[i][1] = vector_distance(state->player_position, state->objects[i].position);
     }
-    quicksort(sprite_distances, 0, state->sprite_count - 1);
+    quicksort(sprite_distances, 0, state->object_count - 1);
 
     vector minus_player_pos = vector_mult(state->player_position, -1);
-    for(int i = state->sprite_count - 1; i >= 0; i--){
+    for(int i = state->object_count - 1; i >= 0; i--){
 
-        vector sprite_render_pos = vector_sum(state->sprites[(int)sprite_distances[i][0]].position, minus_player_pos);
+        vector sprite_render_pos = vector_sum(state->objects[(int)sprite_distances[i][0]].position, minus_player_pos);
         float inverse_determinate = 1.0 / ((state->player_camera.x * state->player_direction.y) - (state->player_direction.x * state->player_camera.y));
         vector transform = (vector){ .x = (state->player_direction.y * sprite_render_pos.x) - (state->player_direction.x * sprite_render_pos.y), .y = (-state->player_camera.y * sprite_render_pos.x) + (state->player_camera.x * sprite_render_pos.y) };
         transform = vector_mult(transform, inverse_determinate);
@@ -589,7 +589,7 @@ void engine_render_state(State* state){
             sprite_end_x = SCREEN_WIDTH - 1;
         }
 
-        int sprite_index = state->sprites[(int)sprite_distances[i][0]].image;
+        int sprite_index = state->objects[(int)sprite_distances[i][0]].image;
         // SDL_Rect region = object_sprite_regions[sprite_index];
         for(int stripe = sprite_start_x; stripe < sprite_end_x; stripe++){
 

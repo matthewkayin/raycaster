@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 
+// Represents any 2d image rendered in the world
 typedef struct sprite{
 
     int image;
@@ -24,8 +25,8 @@ typedef struct State{
     int map_width;
     int map_height;
 
-    sprite* sprites;
-    int sprite_count;
+    sprite* objects;
+    int object_count;
 } State;
 
 State* state_init();
