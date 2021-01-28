@@ -11,11 +11,8 @@ State* state_init(){
 
     State* new_state = (State*)malloc(sizeof(State));
 
-    new_state->map = NULL;
-    new_state->map_ceil = NULL;
-    new_state->map_floor = NULL;
-    new_state->map_width = 0;
-    new_state->map_height = 0;
+    // new_state->map = map_init(20, 15);
+    new_state->map = map_load_from_tmx("./tiled/test.tmx");
 
     new_state->player_position = (vector){ .x = 2.5, .y = 2.5 };
     new_state->player_move_dir = ZERO_VECTOR;
@@ -24,8 +21,9 @@ State* state_init(){
     new_state->player_rotate_dir = 0;
 
     new_state->sprite_capacity = 10;
+    new_state->sprite_count = 0;
     new_state->sprites = (sprite*)malloc(sizeof(sprite) * new_state->sprite_capacity);
-    sprite_create(new_state, (sprite){
+    /*sprite_create(new_state, (sprite){
             .image = 0,
             .type = SPRITE_OBJECT,
             .position = (vector){ .x = 2.5, .y = 6.5 },
@@ -42,15 +40,15 @@ State* state_init(){
             .type = SPRITE_OBJECT,
             .position = (vector){ .x = 8.5, .y = 4.5 },
             .velocity = ZERO_VECTOR
-    });
+    });*/
 
     return new_state;
 }
 
 bool in_wall(State* state, vector v){
 
-    int index = (int)v.x + ((int)v.y * state->map_width);
-    return state->map[index] != 0;
+    int index = (int)v.x + ((int)v.y * state->map->width);
+    return state->map->wall[index] != 0;
 }
 
 void state_update(State* state, float delta){
@@ -130,10 +128,10 @@ void state_update(State* state, float delta){
 void player_shoot(State* state){
 
     sprite_create(state, (sprite){
-            .image = 3,
-            .type = SPRITE_PROJECTILE,
-            .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3)),
-            .velocity = vector_scale(state->player_direction, 0.1),
+        .image = 3,
+        .type = SPRITE_PROJECTILE,
+        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3)),
+        .velocity = vector_scale(state->player_direction, 0.1),
     });
 }
 
@@ -193,10 +191,10 @@ int hits_wall(State* state, vector v){
 
         if(check_point[i]){
 
-            int index = points[i].x + (points[i].y * state->map_width);
-            if(state->map[index]){
+            int index = points[i].x + (points[i].y * state->map->width);
+            if(state->map->wall[index]){
 
-                return state->map[index];
+                return state->map->wall[index];
             }
         }
     }

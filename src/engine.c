@@ -242,142 +242,6 @@ float engine_clock_tick(){
     return delta;
 }
 
-void engine_state_load_map(State* state, const char* path){
-
-    static SDL_Color wall_colors[2] = {
-        (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 },
-        (SDL_Color){ .r = 0, .g = 0, .b = 255, .a = 255 }
-    };
-
-    char path_buffer[256];
-    strcpy(path_buffer, path);
-    strcat(path_buffer, ".png");
-    SDL_Surface* map_source = IMG_Load(path_buffer);
-
-    strcpy(path_buffer, path);
-    strcat(path_buffer, "_ceil.png");
-    SDL_Surface* map_ceil_source = IMG_Load(path_buffer);
-
-    strcpy(path_buffer, path);
-    strcat(path_buffer, "_floor.png");
-    SDL_Surface* map_floor_source = IMG_Load(path_buffer);
-
-    uint32_t* map_pixels = map_source->pixels;
-    uint32_t* map_ceil_pixels = map_ceil_source->pixels;
-    uint32_t* map_floor_pixels = map_floor_source->pixels;
-
-    int map_width = map_source->w;
-    int map_height = map_source->h;
-    int map_size = map_width * map_height;
-
-    state->map = (int*)malloc(sizeof(int) * map_size);
-    state->map_ceil = (int*)malloc(sizeof(int) * map_size);
-    state->map_floor = (int*)malloc(sizeof(int) * map_size);
-    state->map_width = map_width;
-    state->map_height = map_height;
-
-    for(int i = 0; i < map_size; i++){
-
-        // Set wall
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-        uint8_t a;
-        SDL_GetRGBA(map_pixels[i], map_source->format, &r, &g, &b, &a);
-
-        // Empty wall
-        if(r == 255 && g == 255 && b == 255){
-
-            state->map[i] = 0;
-            continue;
-
-        // Player spawn
-        }else if(r == 0 && g == 255 && b == 0){
-
-            state->map[i] = 0;
-            int x = i % map_width;
-            int y = (int)(i / map_width);
-            state->player_position = (vector){ .x = x + 0.5, .y = y + 0.5 };
-            continue;
-        }
-
-        // Wall textures
-        bool set_value = false;
-        for(int j = 0; j < 2; j++){
-
-            if(r == wall_colors[j].r && g == wall_colors[j].g && b == wall_colors[j].b){
-
-                state->map[i] = j + 1;
-                set_value = true;
-                break;
-            }
-        }
-
-        if(!set_value){
-
-            int x = i % map_width;
-            int y = (int)(i / map_width);
-            state->map[i] = 0;
-            printf("Error generating map! Color of (%i, %i, %i) at position (%i, %i) has no match!\n", r, g, b, x, y);
-        }
-    }
-
-    for(int i = 0; i < map_size; i++){
-
-        // Set ceiling
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-        uint8_t a;
-        SDL_GetRGBA(map_ceil_pixels[i], map_ceil_source->format, &r, &g, &b, &a);
-
-        bool set_value = false;
-        for(int j = 0; j < 2; j++){
-
-            if(r == wall_colors[j].r && g == wall_colors[j].g && b == wall_colors[j].b){
-
-                state->map_ceil[i] = j;
-                set_value = true;
-                break;
-            }
-        }
-
-        if(!set_value){
-
-            int x = i % map_width;
-            int y = (int)(i / map_width);
-            state->map_ceil[i] = 0;
-            printf("Error generating ceiling map! Color of (%i, %i, %i) at position (%i, %i) has no match!\n", r, g, b, x, y);
-        }
-
-        // Set floor
-        SDL_GetRGBA(map_floor_pixels[i], map_floor_source->format, &r, &g, &b, &a);
-
-        set_value = false;
-        for(int j = 0; j < 2; j++){
-
-            if(r == wall_colors[j].r && g == wall_colors[j].g && b == wall_colors[j].b){
-
-                state->map_floor[i] = j;
-                set_value = true;
-                break;
-            }
-        }
-
-        if(!set_value){
-
-            int x = i % map_width;
-            int y = (int)(i / map_width);
-            state->map_floor[i] = 0;
-            printf("Error generating ceiling map! Color of (%i, %i, %i) at position (%i, %i) has no match!\n", r, g, b, x, y);
-        }
-    }
-
-    SDL_FreeSurface(map_source);
-    SDL_FreeSurface(map_ceil_source);
-    SDL_FreeSurface(map_floor_source);
-}
-
 void engine_render_text(const char* text, SDL_Color color, int x, int y){
 
     SDL_Surface* text_surface = TTF_RenderText_Solid(font_small, text, color);
@@ -438,38 +302,6 @@ void engine_render_buffer(){
     SDL_RenderCopy(renderer, screen_buffer_texture, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT }, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT });
 }
 
-void engine_render_preview(State* state){
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    for(int x = 0; x < state->map_width; x++){
-
-        for(int y = 0; y < state->map_height; y++){
-
-            int index = x + (y * state->map_width);
-            if(state->map[index]){
-
-                SDL_RenderFillRect(renderer, &(SDL_Rect){ .x = x * 20, .y = y * 20, .w = 20, .h = 20 });
-            }
-        }
-    }
-
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-    SDL_RenderFillRect(renderer, &(SDL_Rect){ .x = (int)(state->player_position.x * 20) - 2, .y = (int)(state->player_position.y * 20) - 2, .w = 4, .h = 4 });
-
-    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-    vector dir = vector_sum(state->player_position, state->player_direction);
-    vector cam = vector_sum(dir, state->player_camera);
-    SDL_RenderDrawLine(renderer, (int)(state->player_position.x * 20), (int)(state->player_position.y * 20), (int)(dir.x * 20), (int)(dir.y * 20));
-    SDL_RenderDrawLine(renderer, (int)(dir.x * 20), (int)(dir.y * 20), (int)(cam.x * 20), (int)(cam.y * 20));
-
-    engine_render_fps();
-
-    SDL_RenderPresent(renderer);
-}
-
 void engine_render_state(State* state){
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -498,14 +330,14 @@ void engine_render_state(State* state){
             int texture_y = (int)(TEXTURE_SIZE * (floor.y - cell.y)) & (TEXTURE_SIZE - 1);
 
             floor = vector_sum(floor, floor_step);
-            if(cell.x >= 0 && cell.x <= state->map_width - 1 && cell.y >= 0 && cell.y <= state->map_height - 1){
+            if(cell.x >= 0 && cell.x <= state->map->width - 1 && cell.y >= 0 && cell.y <= state->map->height - 1){
 
-                int floor_index = cell.x + (cell.y * state->map_width);
+                int floor_index = cell.x + (cell.y * state->map->width);
                 int source_index = texture_x + (texture_y * TEXTURE_SIZE);
                 int dest_index = x + (y * SCREEN_WIDTH);
-                screen_buffer[dest_index] = (textures[state->map_floor[floor_index]][source_index] >> 1) & 8355711;
+                screen_buffer[dest_index] = (textures[state->map->floor[floor_index] - 1][source_index] >> 1) & 8355711;
                 dest_index = x + ((SCREEN_HEIGHT - y - 1) * SCREEN_WIDTH);
-                screen_buffer[dest_index] = (textures[state->map_ceil[floor_index]][source_index] >> 1) & 8355711;
+                screen_buffer[dest_index] = (textures[state->map->ceil[floor_index] - 1][source_index] >> 1) & 8355711;
             }
         }
     }

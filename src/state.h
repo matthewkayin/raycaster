@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vector.h"
+#include "map.h"
 
 #include <stdbool.h>
 
@@ -24,11 +25,7 @@ typedef struct State{
     vector player_camera;
     float player_rotate_dir;
 
-    int* map;
-    int* map_ceil;
-    int* map_floor;
-    int map_width;
-    int map_height;
+    map* map;
 
     sprite* sprites;
     int sprite_count;

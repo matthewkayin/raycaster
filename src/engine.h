@@ -16,7 +16,4 @@ void engine_toggle_fullscreen();
 void engine_clock_init();
 float engine_clock_tick();
 
-void engine_state_load_map(State* state, const char* path);
-
-void engine_render_preview(State* state);
 void engine_render_state(State* state);

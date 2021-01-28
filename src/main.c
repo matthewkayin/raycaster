@@ -3,6 +3,8 @@
 
 #include <SDL2/SDL.h>
 
+void loop_game();
+
 int main(){
 
     bool success = engine_init();
@@ -13,9 +15,6 @@ int main(){
 
     State* state = state_init();
     bool input_held[6] = {false, false, false, false, false, false};
-    bool render_preview = false;
-
-    engine_state_load_map(state, "./res/map");
 
     bool running = true;
     engine_clock_init();
@@ -60,10 +59,6 @@ int main(){
 
                     state->player_rotate_dir = 1;
                     input_held[5] = true;
-
-                }else if(key == SDLK_F1){
-
-                    render_preview = !render_preview;
                 }
 
             }else if(e.type == SDL_KEYUP){
@@ -115,18 +110,11 @@ int main(){
 
         float delta = engine_clock_tick();
         state_update(state, delta);
-        if(render_preview){
-
-            engine_render_preview(state);
-
-        }else{
-
-            engine_render_state(state);
-        }
+        engine_render_state(state);
     }
 
+    free(state);
 
     engine_quit();
-
     return 0;
 }
