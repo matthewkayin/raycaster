@@ -5,6 +5,7 @@ typedef struct map{
     int* wall;
     int* ceil;
     int* floor;
+    int* objects;
     int width;
     int height;
 } map;

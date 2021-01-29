@@ -148,12 +148,19 @@ map* map_load_from_tmx(const char* path){
 
     char line_buffer[1024];
     char value_buffer[32];
-    int read_mode = -1;
+
+    bool reading_tiles = false;
+    bool fill_blanks = false;
+    int* tile_array;
+    int current_offset = 0;
     int y = 0;
+
+    int tileset_offset = 0;
+    int objects_offset = 0;
     while(fgets(line_buffer, sizeof(line_buffer), file)){
 
         trim_leading_whitespace(line_buffer);
-        if(read_mode == -1){
+        if(!reading_tiles){
 
             if(starts_with(line_buffer, "<map")){
 
@@ -167,22 +174,48 @@ map* map_load_from_tmx(const char* path){
                 new_map->wall = malloc(sizeof(int) * map_size);
                 new_map->floor = malloc(sizeof(int) * map_size);
                 new_map->ceil = malloc(sizeof(int) * map_size);
+                new_map->objects = malloc(sizeof(int) * map_size);
+
+            }else if(starts_with(line_buffer, "<tileset")){
+
+                read_property(line_buffer, "firstgid", value_buffer);
+                int firstgid = atoi(value_buffer);
+                read_property(line_buffer, "source", value_buffer);
+                if(strcmp(value_buffer, "wolftiles.tsx") == 0){
+
+                    tileset_offset = firstgid - 1;
+
+                }else if(strcmp(value_buffer, "objects.tsx") == 0){
+
+                    objects_offset = firstgid - 1;
+                }
 
             }else if(starts_with(line_buffer, "<layer")){
 
                 read_property(line_buffer, "name", value_buffer);
                 if(strcmp(value_buffer, "wall") == 0){
 
-                    read_mode = 0;
+                    tile_array = new_map->wall;
+                    current_offset = tileset_offset;
 
                 }else if(strcmp(value_buffer, "floor") == 0){
 
-                    read_mode = 1;
+                    tile_array = new_map->floor;
+                    fill_blanks = true;
+                    current_offset = tileset_offset;
 
                 }else if(strcmp(value_buffer, "ceil") == 0){
 
-                    read_mode = 2;
+                    tile_array = new_map->ceil;
+                    fill_blanks = true;
+                    current_offset = tileset_offset;
+
+                }else if(strcmp(value_buffer, "objects") == 0){
+
+                    tile_array = new_map->objects;
+                    current_offset = objects_offset;
                 }
+                reading_tiles = true;
                 y = 0;
             }
 
@@ -190,17 +223,22 @@ map* map_load_from_tmx(const char* path){
 
             if(starts_with(line_buffer, "</data>")){
 
-                read_mode = -1;
+                reading_tiles = false;
+                fill_blanks = false;
+                current_offset = 0;
 
             }else if(!starts_with(line_buffer, "<data")){
 
-                int* tile_array = read_mode == 0 ? new_map->wall : (read_mode == 1 ? new_map->floor : new_map->ceil);
                 int scan_index = 0;
                 for(int x = 0; x < new_map->width; x++){
 
                     read_next_value(line_buffer, &scan_index, value_buffer);
                     tile_array[x + (y * new_map->width)] = atoi(value_buffer);
-                    if((read_mode == 1 || read_mode == 2) && tile_array[x + (y * new_map->width)] == 0){
+                    if(tile_array[x + (y * new_map->width)] != 0){
+
+                        tile_array[x + (y * new_map->width)] -= current_offset;
+                    }
+                    if(fill_blanks && tile_array[x + (y * new_map->width)] == 0){
 
                         tile_array[x + (y * new_map->width)] = 1;
                     }

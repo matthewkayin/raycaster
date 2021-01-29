@@ -23,24 +23,23 @@ State* state_init(){
     new_state->sprite_capacity = 10;
     new_state->sprite_count = 0;
     new_state->sprites = (sprite*)malloc(sizeof(sprite) * new_state->sprite_capacity);
-    /*sprite_create(new_state, (sprite){
-            .image = 0,
-            .type = SPRITE_OBJECT,
-            .position = (vector){ .x = 2.5, .y = 6.5 },
-            .velocity = ZERO_VECTOR
-    });
-    sprite_create(new_state, (sprite){
-            .image = 0,
-            .type = SPRITE_OBJECT,
-            .position = (vector){ .x = 6.5, .y = 5.5 },
-            .velocity = ZERO_VECTOR
-    });
-    sprite_create(new_state, (sprite){
-            .image = 0,
-            .type = SPRITE_OBJECT,
-            .position = (vector){ .x = 8.5, .y = 4.5 },
-            .velocity = ZERO_VECTOR
-    });*/
+
+    for(int x = 0; x < new_state->map->width; x++){
+
+        for(int y = 0; y < new_state->map->height; y++){
+
+            int obj = new_state->map->objects[x + (y * new_state->map->width)];
+            if(obj != 0){
+
+                sprite_create(new_state, (sprite){
+                    .image = obj - 1,
+                    .type = SPRITE_OBJECT,
+                    .position = (vector){ .x = x + 0.5, .y = y + 0.5 },
+                    .velocity = ZERO_VECTOR
+                });
+            }
+        }
+    }
 
     return new_state;
 }

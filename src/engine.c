@@ -18,9 +18,9 @@ SDL_Surface* screen_surface;
 const int TEXTURE_SIZE = 64;
 int texture_count;
 uint32_t** textures;
-int sprite_image_count;
-uint32_t** sprite_images;
-SDL_Rect* sprite_image_regions;
+int object_image_count;
+uint32_t** object_images;
+SDL_Rect* object_image_regions;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -171,8 +171,8 @@ bool engine_init(){
     COLOR_TRANSPARENT = SDL_MapRGBA(screen_surface->format, 0, 0, 0, 0);
 
     engine_spritesheet_load(&textures, &texture_count, "./res/textures.png");
-    engine_spritesheet_load(&sprite_images, &sprite_image_count, "./res/sprites.png");
-    engine_spritesheet_find_regions(sprite_images, &sprite_image_regions, sprite_image_count);
+    engine_spritesheet_load(&object_images, &object_image_count, "./res/sprites.png");
+    engine_spritesheet_find_regions(object_images, &object_image_regions, object_image_count);
 
     return true;
 }
@@ -421,7 +421,11 @@ void engine_render_state(State* state){
             sprite_end_x = SCREEN_WIDTH - 1;
         }
 
-        int sprite_index = state->sprites[(int)sprite_distances[i][0]].image;
+        uint32_t* sprite_image;
+        if(state->sprites[(int)sprite_distances[i][0]].type == SPRITE_OBJECT){
+
+            sprite_image = object_images[state->sprites[(int)sprite_distances[i][0]].image];
+        }
         // SDL_Rect region = object_sprite_regions[sprite_index];
         for(int stripe = sprite_start_x; stripe < sprite_end_x; stripe++){
 
@@ -446,7 +450,7 @@ void engine_render_state(State* state){
                     */
                     int soruce_index = texture_x + (texture_y * TEXTURE_SIZE);
                     int dest_index = stripe + (y * SCREEN_WIDTH);
-                    uint32_t color = sprite_images[sprite_index][soruce_index];
+                    uint32_t color = sprite_image[soruce_index];
                     if(color != COLOR_TRANSPARENT){
 
                         screen_buffer[dest_index] = color;
