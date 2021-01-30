@@ -29,45 +29,6 @@ map* map_init(int width, int height){
     return new_map;
 }
 
-void map_resize(map* old_map, int new_width, int new_height){
-
-    int old_width = old_map->width;
-    int old_height = old_map->height;
-    int* old_wall = (int*)malloc(sizeof(int) * old_width * old_height);
-    int* old_ceil = (int*)malloc(sizeof(int) * old_width * old_height);
-    int* old_floor = (int*)malloc(sizeof(int) * old_width * old_height);
-
-    old_map->width = new_width;
-    old_map->height = new_height;
-    old_map->wall = (int*)malloc(sizeof(int) * new_width * new_height);
-    old_map->ceil = (int*)malloc(sizeof(int) * new_width * new_height);
-    old_map->floor = (int*)malloc(sizeof(int) * new_width * new_height);
-
-    for(int i = 0; i < new_width * new_height; i++){
-
-        int x = i % new_width;
-        int y = (int)(i / new_width);
-
-        if(x < old_width && y < old_height){
-
-            int old_index = x + (y * old_width);
-            old_map->wall[i] = old_wall[old_index];
-            old_map->ceil[i] = old_ceil[old_index];
-            old_map->floor[i] = old_floor[old_index];
-
-        }else{
-
-            old_map->wall[i] = (x == 0 || y == 0 || x == new_width - 1 || y == new_height - 1) ? 1 : 0;
-            old_map->ceil[i] = 1;
-            old_map->floor[i] = 1;
-        }
-    }
-
-    free(old_wall);
-    free(old_ceil);
-    free(old_floor);
-}
-
 void trim_leading_whitespace(char* str){
 
     int start_index = 0;
@@ -157,6 +118,7 @@ map* map_load_from_tmx(const char* path){
 
     int tileset_offset = 0;
     int objects_offset = 0;
+    int entities_offset = 0;
     while(fgets(line_buffer, sizeof(line_buffer), file)){
 
         trim_leading_whitespace(line_buffer);
@@ -175,19 +137,24 @@ map* map_load_from_tmx(const char* path){
                 new_map->floor = malloc(sizeof(int) * map_size);
                 new_map->ceil = malloc(sizeof(int) * map_size);
                 new_map->objects = malloc(sizeof(int) * map_size);
+                new_map->entities = malloc(sizeof(int) * map_size);
 
             }else if(starts_with(line_buffer, "<tileset")){
 
                 read_property(line_buffer, "firstgid", value_buffer);
                 int firstgid = atoi(value_buffer);
                 read_property(line_buffer, "source", value_buffer);
-                if(strcmp(value_buffer, "wolftiles.tsx") == 0){
+                if(strcmp(value_buffer, "tileset.tsx") == 0){
 
                     tileset_offset = firstgid - 1;
 
                 }else if(strcmp(value_buffer, "objects.tsx") == 0){
 
                     objects_offset = firstgid - 1;
+
+                }else if(strcmp(value_buffer, "entities.tsx") == 0){
+
+                    entities_offset = firstgid - 1;
                 }
 
             }else if(starts_with(line_buffer, "<layer")){
@@ -214,6 +181,11 @@ map* map_load_from_tmx(const char* path){
 
                     tile_array = new_map->objects;
                     current_offset = objects_offset;
+
+                }else if(strcmp(value_buffer, "entities") == 0){
+
+                    tile_array = new_map->entities;
+                    current_offset = entities_offset;
                 }
                 reading_tiles = true;
                 y = 0;

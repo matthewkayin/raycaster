@@ -4,18 +4,26 @@
 #include "map.h"
 
 #include <stdbool.h>
-
-static const int SPRITE_OBJECT = 0;
-static const int SPRITE_PROJECTILE = 1;
+#include <stdlib.h>
 
 // Represents any 2d image rendered in the world
 typedef struct sprite{
 
     int image;
-    int type;
     vector position;
-    vector velocity;
 } sprite;
+
+typedef struct projectile{
+
+    sprite image;
+    vector velocity;
+} projectile;
+
+typedef struct enemy{
+
+    sprite image;
+    vector velocity;
+} enemy;
 
 typedef struct State{
 
@@ -27,9 +35,17 @@ typedef struct State{
 
     map* map;
 
-    sprite* sprites;
-    int sprite_count;
-    int sprite_capacity;
+    sprite* objects;
+    int object_count;
+    int object_capacity;
+
+    projectile* projectiles;
+    int projectile_count;
+    int projectile_capacity;
+
+    enemy* enemies;
+    int enemy_count;
+    int enemy_capacity;
 } State;
 
 State* state_init();
@@ -37,7 +53,8 @@ void state_update(State* state, float delta);
 
 void player_shoot(State* state);
 
-void sprite_create(State* state, sprite to_create);
-void sprite_delete(State* state, int index);
+void vector_push(void* vector, void* to_push, int* count, int* capacity, size_t unit_size);
+void vector_delete(void* vector, int index, int* count, size_t unit_size);
 
-void raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture);
+void raycast_line_of_sight(State* state, vector origin, vector target, vector* hit);
+void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture);

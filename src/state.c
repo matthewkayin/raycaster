@@ -1,7 +1,7 @@
 #include "state.h"
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 const float PLAYER_SPEED = 0.05;
@@ -20,9 +20,17 @@ State* state_init(){
     new_state->player_camera = (vector){ .x = 0.66, .y = 0 };
     new_state->player_rotate_dir = 0;
 
-    new_state->sprite_capacity = 10;
-    new_state->sprite_count = 0;
-    new_state->sprites = (sprite*)malloc(sizeof(sprite) * new_state->sprite_capacity);
+    new_state->projectile_capacity = 10;
+    new_state->projectile_count = 0;
+    new_state->projectiles = malloc(sizeof(projectile) * new_state->projectile_capacity);
+
+    new_state->object_capacity = 10;
+    new_state->object_count = 0;
+    new_state->objects = malloc(sizeof(sprite) * new_state->object_capacity);
+
+    new_state->enemy_capacity = 10;
+    new_state->enemy_count = 0;
+    new_state->enemies = malloc(sizeof(enemy) * new_state->enemy_capacity);
 
     for(int x = 0; x < new_state->map->width; x++){
 
@@ -31,12 +39,28 @@ State* state_init(){
             int obj = new_state->map->objects[x + (y * new_state->map->width)];
             if(obj != 0){
 
-                sprite_create(new_state, (sprite){
+                sprite to_push = (sprite){
                     .image = obj - 1,
-                    .type = SPRITE_OBJECT,
-                    .position = (vector){ .x = x + 0.5, .y = y + 0.5 },
+                    .position = (vector){ .x = x + 0.5, .y = y + 0.5 }
+                };
+                vector_push(new_state->objects, &to_push, &new_state->object_count, &new_state->object_capacity, sizeof(sprite));
+            }
+
+            int entity = new_state->map->entities[x + (y * new_state->map->width)];
+            if(entity == 1){
+
+                new_state->player_position = (vector){ .x = x + 0.5, .y = y + 0.5 };
+
+            }else if(entity == 2){
+
+                enemy to_push = (enemy){
+                    .image = (sprite){
+                        .image = 1,
+                        .position = (vector){ .x = x + 0.5, .y = y + 0.5 }
+                    },
                     .velocity = ZERO_VECTOR
-                });
+                };
+                vector_push(new_state->enemies, &to_push, &new_state->enemy_count, &new_state->enemy_capacity, sizeof(enemy));
             }
         }
     }
@@ -86,13 +110,24 @@ void state_update(State* state, float delta){
             }
         }
 
-        // Check player object collisions
-        for(int i = 0; i < state->sprite_count; i++){
+        // Check player sprite collisions
+        int sprite_collider_count = state->object_count + state->enemy_count;
+        vector** sprite_colliders = malloc(sizeof(vector*) * sprite_collider_count);
+        for(int i = 0; i < state->object_count; i++){
 
-            if(vector_distance(state->player_position, state->sprites[i].position) <= 0.2){
+            sprite_colliders[i] = &(state->objects[i].position);
+        }
+        int base_index = state->object_count;
+        for(int i = 0; i < state->enemy_count; i++){
 
-                bool x_caused = vector_distance(vector_sum(player_last_pos, player_velocity_x_component), state->sprites[i].position) <= 0.2;
-                bool y_caused = vector_distance(vector_sum(player_last_pos, player_velocity_y_component), state->sprites[i].position) <= 0.2;
+            sprite_colliders[i + base_index] = &(state->enemies[i].image.position);
+        }
+        for(int i = 0; i < sprite_collider_count; i++){
+
+            if(vector_distance(state->player_position, *sprite_colliders[i]) <= 0.2){
+
+                bool x_caused = vector_distance(vector_sum(player_last_pos, player_velocity_x_component), *sprite_colliders[i]) <= 0.2;
+                bool y_caused = vector_distance(vector_sum(player_last_pos, player_velocity_y_component), *sprite_colliders[i]) <= 0.2;
 
                 if(x_caused){
 
@@ -104,21 +139,35 @@ void state_update(State* state, float delta){
                 }
             }
         }
+        free(sprite_colliders);
     }
 
-    // Sprite movement
-    for(int i = 0; i < state->sprite_count; i++){
+    // Projectile movement
+    // We go last to first element so that deletion logic is cleaner
+    for(int i = state->projectile_count - 1; i >= 0; i--){
 
-        if(state->sprites[i].velocity.x != 0 || state->sprites[i].velocity.y != 0){
+        if(state->projectiles[i].velocity.x != 0 || state->projectiles[i].velocity.y != 0){
 
-            state->sprites[i].position = vector_sum(state->sprites[i].position, state->sprites[i].velocity);
+            state->projectiles[i].image.position = vector_sum(state->projectiles[i].image.position, state->projectiles[i].velocity);
+            if(in_wall(state, state->projectiles[i].image.position)){
 
-            if(state->sprites[i].type == SPRITE_PROJECTILE){
+                vector_delete(state->projectiles, i, &state->projectile_count, sizeof(projectile));
+            }
+        }
+    }
 
-                if(in_wall(state, state->sprites[i].position)){
+    // Enemy movement
+    for(int i = state->enemy_count - 1; i >= 0; i--){
 
-                    sprite_delete(state, i);
-                }
+        vector hit;
+        raycast_line_of_sight(state, state->enemies[i].image.position, state->player_position, &hit);
+        if(hit.x != -1){
+
+            vector enemy_dist = vector_sum(hit, vector_mult(state->enemies[i].image.position, -1));
+            if(vector_magnitude(enemy_dist) > 0.5){
+
+                vector enemy_velocity = vector_scale(enemy_dist, 0.04);
+                state->enemies[i].image.position = vector_sum(state->enemies[i].image.position, enemy_velocity);
             }
         }
     }
@@ -126,39 +175,40 @@ void state_update(State* state, float delta){
 
 void player_shoot(State* state){
 
-    sprite_create(state, (sprite){
-        .image = 0,
-        .type = SPRITE_PROJECTILE,
-        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3)),
-        .velocity = vector_scale(state->player_direction, 0.1),
-    });
+    projectile to_create = (projectile){
+        .image = (sprite){
+            .image = 0,
+            .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3))
+        },
+        .velocity = vector_scale(state->player_direction, 0.1)
+    };
+    vector_push(state->projectiles, &to_create, &state->projectile_count, &state->projectile_capacity, sizeof(projectile));
 }
 
-void sprite_create(State* state, sprite to_create){
+void vector_push(void* vector, void* to_push, int* count, int* capacity, size_t unit_size){
 
-    if(state->sprite_count == state->sprite_capacity){
+    if(*count == *capacity){
 
-        state->sprite_capacity *= 2;
-        state->sprites = (sprite*)realloc(state->sprites, sizeof(sprite) * state->sprite_capacity);
+        *capacity *= 2;
+        vector = realloc(vector, unit_size * *capacity);
     }
 
-    state->sprites[state->sprite_count] = to_create;
-    state->sprite_count++;
+    memcpy(vector + (unit_size * *count), to_push, unit_size);
+    (*count)++;
 }
 
-void sprite_delete(State* state, int index){
+void vector_delete(void* vector, int index, int* count, size_t unit_size){
 
-    if(index >= state->sprite_count){
+    if(index >= *count){
 
-        printf("Error! Tried to delete projectile index of %i; index out of bounds\n", index);
-        return;
+        printf("Error! Tried to delete vector item index %i out of size %i; index out of bounds\n", index, *count);
     }
 
-    for(int i = index; i < state->sprite_count - 1; i++){
+    for(int i = index; i < (*count) - 1; i++){
 
-        state->sprites[i] = state->sprites[i + 1];
+        memcpy(vector + (unit_size * i), vector + (unit_size * (i + 1)), unit_size);
     }
-    state->sprite_count--;
+    (*count)--;
 }
 
 int hits_wall(State* state, vector v){
@@ -201,7 +251,80 @@ int hits_wall(State* state, vector v){
     return -1;
 }
 
-void raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture){
+void raycast_line_of_sight(State* state, vector origin, vector target, vector* hit){
+
+    vector current = origin;
+    vector ray = (vector){ .x = target.x - origin.x, .y = target.y - origin.y };
+    float dist = vector_magnitude(ray);
+    int wall_hit = hits_wall(state, current);
+    while(wall_hit == -1){
+
+        // Check if we've hit the target before we hit a wall
+        if(vector_magnitude((vector){ .x = current.x - origin.x, .y = current.y - origin.y }) >= dist){
+
+            *hit = target;
+            return;
+        }
+
+        vector x_step = ZERO_VECTOR;
+        vector y_step = ZERO_VECTOR;
+
+        if(ray.x != 0){
+
+            if(current.x == (int)current.x){
+
+                x_step.x = ray.x > 0 ? current.x + 1 : current.x - 1;
+
+            }else{
+
+                x_step.x = ray.x > 0 ? (int)(current.x + 1) : (int)current.x;
+            }
+
+            x_step.x = x_step.x - current.x;
+            float scale = ray.x / x_step.x;
+            x_step.y = ray.y / scale;
+        }
+
+        if(ray.y != 0){
+
+            if(current.y == (int)current.y){
+
+                y_step.y = ray.y > 0 ? current.y + 1 : current.y - 1;
+
+            }else{
+
+                y_step.y = ray.y > 0 ? (int)(current.y + 1) : (int)current.y;
+            }
+
+            y_step.y = y_step.y - current.y;
+            float scale = ray.y / y_step.y;
+            y_step.x = ray.x / scale;
+        }
+
+        if(ray.x == 0){
+
+            current = vector_sum(current, y_step);
+
+        }else if(ray.y == 0){
+
+            current = vector_sum(current, x_step);
+
+        }else{
+
+            float x_dist = vector_magnitude(x_step);
+            float y_dist = vector_magnitude(y_step);
+            vector step = x_dist <= y_dist ? x_step : y_step;
+            current = vector_sum(current, step);
+        }
+
+        wall_hit = hits_wall(state, current);
+    } // End while
+
+    // Indicates hit wall before hit target
+    *hit = (vector){ .x = -1, .y = -1 };
+}
+
+void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture){
 
     vector current = origin;
 
