@@ -18,9 +18,14 @@ SDL_Surface* screen_surface;
 const int TEXTURE_SIZE = 64;
 int texture_count;
 uint32_t** textures;
+
 int object_image_count;
 uint32_t** object_images;
 SDL_Rect* object_image_regions;
+
+int projectile_image_count;
+uint32_t** projectile_images;
+SDL_Rect* projectile_image_regions;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -68,13 +73,9 @@ void engine_spritesheet_load(uint32_t*** sprites, int* sprite_count, const char*
                     int source_index = source_base_x + tx + ((source_base_y + ty) * loaded_surface->w);
                     int dest_index = tx + (ty * TEXTURE_SIZE);
 
-                    uint8_t r;
-                    uint8_t g;
-                    uint8_t b;
-                    uint8_t a;
+                    uint8_t r, g, b, a;
                     SDL_GetRGBA(loaded_surface_pixels[source_index], loaded_surface->format, &r, &g, &b, &a);
-
-                    (*sprites)[sprite_index][dest_index] = SDL_MapRGBA(screen_surface->format, r, g, b, a);
+                    (*sprites)[sprite_index][dest_index] = a == 0 ? 0 : SDL_MapRGBA(screen_surface->format, r, g, b, a);
                 }
             }
         }
@@ -168,11 +169,13 @@ bool engine_init(){
     screen_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_SetRelativeMouseMode(SDL_TRUE);
 
-    COLOR_TRANSPARENT = SDL_MapRGBA(screen_surface->format, 0, 0, 0, 0);
+    COLOR_TRANSPARENT = 0;
 
     engine_spritesheet_load(&textures, &texture_count, "./res/textures.png");
     engine_spritesheet_load(&object_images, &object_image_count, "./res/sprites.png");
     engine_spritesheet_find_regions(object_images, &object_image_regions, object_image_count);
+    engine_spritesheet_load(&projectile_images, &projectile_image_count, "./res/projectiles.png");
+    engine_spritesheet_find_regions(projectile_images, &projectile_image_regions, projectile_image_count);
 
     return true;
 }
@@ -422,9 +425,14 @@ void engine_render_state(State* state){
         }
 
         uint32_t* sprite_image;
-        if(state->sprites[(int)sprite_distances[i][0]].type == SPRITE_OBJECT){
+        int sprite_type = state->sprites[(int)sprite_distances[i][0]].type;
+        if(sprite_type == SPRITE_OBJECT){
 
             sprite_image = object_images[state->sprites[(int)sprite_distances[i][0]].image];
+
+        }else if(sprite_type == SPRITE_PROJECTILE){
+
+            sprite_image = projectile_images[state->sprites[(int)sprite_distances[i][0]].image];
         }
         // SDL_Rect region = object_sprite_regions[sprite_index];
         for(int stripe = sprite_start_x; stripe < sprite_end_x; stripe++){

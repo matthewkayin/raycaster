@@ -127,7 +127,7 @@ void state_update(State* state, float delta){
 void player_shoot(State* state){
 
     sprite_create(state, (sprite){
-        .image = 3,
+        .image = 0,
         .type = SPRITE_PROJECTILE,
         .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3)),
         .velocity = vector_scale(state->player_direction, 0.1),
