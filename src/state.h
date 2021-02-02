@@ -13,6 +13,14 @@ typedef struct sprite{
     vector position;
 } sprite;
 
+typedef struct animation{
+
+    int low_frame;
+    int high_frame;
+    float duration;
+    float timer;
+} animation;
+
 typedef struct projectile{
 
     sprite image;
@@ -23,6 +31,7 @@ typedef struct enemy{
 
     sprite image;
     vector velocity;
+    animation anim;
 } enemy;
 
 typedef struct State{

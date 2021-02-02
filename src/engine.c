@@ -15,21 +15,16 @@ uint32_t* screen_buffer;
 SDL_Texture* screen_buffer_texture;
 SDL_Surface* screen_surface;
 
+typedef struct spritesheet{
+    int sprite_count;
+    uint32_t** sprites;
+} spritesheet;
+
 const int TEXTURE_SIZE = 64;
-int texture_count;
-uint32_t** textures;
-
-int object_image_count;
-uint32_t** object_images;
-SDL_Rect* object_image_regions;
-
-int projectile_image_count;
-uint32_t** projectile_images;
-SDL_Rect* projectile_image_regions;
-
-int enemy_image_count;
-uint32_t** enemy_images;
-SDL_Rect* enemy_image_regions;
+spritesheet* texture_sprites;
+spritesheet* object_sprites;
+spritesheet* projectile_sprites;
+spritesheet* enemy_sprites;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -51,22 +46,23 @@ int frames = 0;
 int fps = 0;
 int ups = 0;
 
-void engine_spritesheet_load(uint32_t*** sprites, int* sprite_count, const char* path){
+spritesheet* engine_spritesheet_load(const char* path){
 
     SDL_Surface* loaded_surface = IMG_Load(path);
     uint32_t* loaded_surface_pixels = loaded_surface->pixels;
     int sprite_count_width = loaded_surface->w / TEXTURE_SIZE;
     int sprite_count_height = loaded_surface->h / TEXTURE_SIZE;
-    *sprite_count = sprite_count_width * sprite_count_height;
 
-    *sprites = (uint32_t**)malloc(sizeof(uint32_t*) * *sprite_count);
+    spritesheet* sheet = malloc(sizeof(spritesheet));
+    sheet->sprite_count = sprite_count_width * sprite_count_height;
+    sheet->sprites = malloc(sizeof(uint32_t*) * sheet->sprite_count);
 
     for(int x = 0; x < sprite_count_width; x++){
 
         for(int y = 0; y < sprite_count_height; y++){
 
             int sprite_index = x + (y * sprite_count_width);
-            (*sprites)[sprite_index] = (uint32_t*)malloc(sizeof(uint32_t) * TEXTURE_SIZE * TEXTURE_SIZE);
+            sheet->sprites[sprite_index] = malloc(sizeof(uint32_t) * TEXTURE_SIZE * TEXTURE_SIZE);
 
             int source_base_x = x * TEXTURE_SIZE;
             int source_base_y = y * TEXTURE_SIZE;
@@ -79,55 +75,21 @@ void engine_spritesheet_load(uint32_t*** sprites, int* sprite_count, const char*
 
                     uint8_t r, g, b, a;
                     SDL_GetRGBA(loaded_surface_pixels[source_index], loaded_surface->format, &r, &g, &b, &a);
-                    (*sprites)[sprite_index][dest_index] = a == 0 ? 0 : SDL_MapRGBA(screen_surface->format, r, g, b, a);
+                    sheet->sprites[sprite_index][dest_index] = a == 0 ? 0 : SDL_MapRGBA(screen_surface->format, r, g, b, a);
                 }
             }
         }
     }
 
     SDL_FreeSurface(loaded_surface);
+
+    return sheet;
 }
 
-void engine_spritesheet_find_regions(uint32_t** sprites, SDL_Rect** regions, int sprite_count){
+void engine_spritesheet_free(spritesheet* sheet){
 
-    *regions = (SDL_Rect*)malloc(sizeof(SDL_Rect) * sprite_count);
-
-    for(int i = 0; i < sprite_count; i++){
-
-        int left = TEXTURE_SIZE - 1;
-        int right = 0;
-        int top = TEXTURE_SIZE - 1;
-        int bottom = 0;
-
-        for(int x = 0; x < TEXTURE_SIZE; x++){
-
-            for(int y = 0; y < TEXTURE_SIZE; y++){
-
-                int index = x + (y * TEXTURE_SIZE);
-                if(sprites[i][index] != COLOR_TRANSPARENT){
-
-                    if(x < left){
-
-                        left = x;
-                    }
-                    if(x > right){
-
-                        right = x;
-                    }
-                    if(y < top){
-
-                        top = y;
-                    }
-                    if(y > bottom){
-
-                        bottom = y;
-                    }
-                }
-            }
-        }
-
-        (*regions)[i] = (SDL_Rect){ .x = left, .y = top, .w = right - left, .h = bottom - top };
-    }
+    free(sheet->sprites);
+    free(sheet);
 }
 
 bool engine_init(){
@@ -175,18 +137,20 @@ bool engine_init(){
 
     COLOR_TRANSPARENT = 0;
 
-    engine_spritesheet_load(&textures, &texture_count, "./res/textures.png");
-    engine_spritesheet_load(&object_images, &object_image_count, "./res/sprites.png");
-    engine_spritesheet_find_regions(object_images, &object_image_regions, object_image_count);
-    engine_spritesheet_load(&projectile_images, &projectile_image_count, "./res/projectiles.png");
-    engine_spritesheet_find_regions(projectile_images, &projectile_image_regions, projectile_image_count);
-    engine_spritesheet_load(&enemy_images, &enemy_image_count, "./res/enemy.png");
-    engine_spritesheet_find_regions(enemy_images, &enemy_image_regions, enemy_image_count);
+    texture_sprites = engine_spritesheet_load("./res/textures.png");
+    object_sprites = engine_spritesheet_load("./res/sprites.png");
+    projectile_sprites = engine_spritesheet_load("./res/projectiles.png");
+    enemy_sprites = engine_spritesheet_load("./res/enemy_1.png");
 
     return true;
 }
 
 void engine_quit(){
+
+    engine_spritesheet_free(texture_sprites);
+    engine_spritesheet_free(object_sprites);
+    engine_spritesheet_free(projectile_sprites);
+    engine_spritesheet_free(enemy_sprites);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -344,9 +308,9 @@ void engine_render_state(State* state){
                 int floor_index = cell.x + (cell.y * state->map->width);
                 int source_index = texture_x + (texture_y * TEXTURE_SIZE);
                 int dest_index = x + (y * SCREEN_WIDTH);
-                screen_buffer[dest_index] = (textures[state->map->floor[floor_index] - 1][source_index] >> 1) & 8355711;
+                screen_buffer[dest_index] = (texture_sprites->sprites[state->map->floor[floor_index] - 1][source_index] >> 1) & 8355711;
                 dest_index = x + ((SCREEN_HEIGHT - y - 1) * SCREEN_WIDTH);
-                screen_buffer[dest_index] = (textures[state->map->ceil[floor_index] - 1][source_index] >> 1) & 8355711;
+                screen_buffer[dest_index] = (texture_sprites->sprites[state->map->ceil[floor_index] - 1][source_index] >> 1) & 8355711;
             }
         }
     }
@@ -383,7 +347,7 @@ void engine_render_state(State* state){
             texture_pos += step;
             int source_index = texture_x + (texture_y * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
-            screen_buffer[dest_index] = x_sided ? textures[texture - 1][source_index] : (textures[texture - 1][source_index] >> 1) & 8355711;
+            screen_buffer[dest_index] = x_sided ? texture_sprites->sprites[texture - 1][source_index] : (texture_sprites->sprites[texture - 1][source_index] >> 1) & 8355711;
         }
     }
 
@@ -398,19 +362,19 @@ void engine_render_state(State* state){
     for(int i = 0; i < state->object_count; i++){
 
         sprites[i] = &(state->objects[i]);
-        sprite_images[i] = object_images[sprites[i]->image];
+        sprite_images[i] = object_sprites->sprites[sprites[i]->image];
     }
     int base_index = state->object_count;
     for(int i = 0; i < state->projectile_count; i++){
 
         sprites[i + base_index] = &(state->projectiles[i].image);
-        sprite_images[i + base_index] = projectile_images[sprites[i + base_index]->image];
+        sprite_images[i + base_index] = projectile_sprites->sprites[sprites[i + base_index]->image];
     }
     base_index += state->projectile_count;
     for(int i = 0; i < state->enemy_count; i++){
 
         sprites[i + base_index] = &(state->enemies[i].image);
-        sprite_images[i + base_index] = enemy_images[sprites[i + base_index]->image];
+        sprite_images[i + base_index] = enemy_sprites->sprites[sprites[i + base_index]->image];
     }
     for(int i = 0; i < sprite_count; i++){
 
@@ -461,24 +425,12 @@ void engine_render_state(State* state){
         for(int stripe = sprite_start_x; stripe < sprite_end_x; stripe++){
 
             int texture_x = (int)((stripe - (sprite_screen_x - (sprite_width / 2))) * TEXTURE_SIZE / sprite_width);
-            /*
-            if(texture_x < region.x || texture_x >= region.x + region.w){
-
-                continue;
-            }
-            */
             if(transform.y > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transform.y < z_buffer[stripe]){
 
                 for(int y = sprite_start_y; y < sprite_end_y; y++){
 
                     int d = y - (SCREEN_HEIGHT / 2) + (sprite_height / 2);
                     int texture_y = (int)((d * TEXTURE_SIZE) / sprite_height);
-                    /*
-                    if(texture_y < region.y || texture_y >= region.y + region.h){
-
-                        continue;
-                    }
-                    */
                     int soruce_index = texture_x + (texture_y * TEXTURE_SIZE);
                     int dest_index = stripe + (y * SCREEN_WIDTH);
                     uint32_t color = sprite_image[soruce_index];

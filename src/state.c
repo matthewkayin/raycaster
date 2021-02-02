@@ -58,7 +58,13 @@ State* state_init(){
                         .image = 1,
                         .position = (vector){ .x = x + 0.5, .y = y + 0.5 }
                     },
-                    .velocity = ZERO_VECTOR
+                    .velocity = ZERO_VECTOR,
+                    .anim = (animation){
+                        .low_frame = 0,
+                        .high_frame = 4,
+                        .duration = 6.0,
+                        .timer = 0.0
+                    }
                 };
                 vector_push(new_state->enemies, &to_push, &new_state->enemy_count, &new_state->enemy_capacity, sizeof(enemy));
             }
@@ -156,9 +162,10 @@ void state_update(State* state, float delta){
         }
     }
 
-    // Enemy movement
+    // Enemy update
     for(int i = state->enemy_count - 1; i >= 0; i--){
 
+        // Movement
         vector hit;
         raycast_line_of_sight(state, state->enemies[i].image.position, state->player_position, &hit);
         if(hit.x != -1){
@@ -169,6 +176,15 @@ void state_update(State* state, float delta){
                 vector enemy_velocity = vector_scale(enemy_dist, 0.04);
                 state->enemies[i].image.position = vector_sum(state->enemies[i].image.position, enemy_velocity);
             }
+        }
+
+        // Animation
+        animation* anim = &(state->enemies[i].anim);
+        anim->timer += delta;
+        if(anim->timer >= anim->duration){
+
+            state->enemies[i].image.image = state->enemies[i].image.image == anim->high_frame ? anim->low_frame : state->enemies[i].image.image + 1;
+            anim->timer -= anim->duration;
         }
     }
 }
