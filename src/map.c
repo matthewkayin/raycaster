@@ -1,33 +1,11 @@
 #include "map.h"
 
+#include "vector_array.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-
-map* map_init(int width, int height){
-
-    map* new_map = (map*)malloc(sizeof(map));
-    new_map->width = width;
-    new_map->height = height;
-
-    int tile_count = width * height;
-    new_map->wall = (int*)malloc(sizeof(int) * tile_count);
-    new_map->ceil = (int*)malloc(sizeof(int) * tile_count);
-    new_map->floor = (int*)malloc(sizeof(int) * tile_count);
-
-    for(int i = 0; i < tile_count; i++){
-
-        int x = i % width;
-        int y = (int)(i / width);
-
-        new_map->wall[i] = (x == 0 || y == 0 || x == width - 1 || y == height - 1) ? 1 : 0;
-        new_map->ceil[i] = 1;
-        new_map->floor[i] = 1;
-    }
-
-    return new_map;
-}
 
 void trim_leading_whitespace(char* str){
 
@@ -138,6 +116,7 @@ map* map_load_from_tmx(const char* path){
                 new_map->ceil = malloc(sizeof(int) * map_size);
                 new_map->objects = malloc(sizeof(int) * map_size);
                 new_map->entities = malloc(sizeof(int) * map_size);
+                new_map->collidemap = malloc(sizeof(bool) * map_size);
 
             }else if(starts_with(line_buffer, "<tileset")){
 
@@ -223,5 +202,186 @@ map* map_load_from_tmx(const char* path){
 
     fclose(file);
 
+    map_generate_collidemap(new_map);
+
     return new_map;
+}
+
+void map_generate_collidemap(map* the_map){
+
+    int map_size = the_map->width * the_map->height;
+
+    for(int i = 0; i < map_size; i++){
+
+        the_map->collidemap[i] = the_map->wall[i] != 0 || the_map->objects[i] != 0;
+    }
+}
+
+bool map_square_occupied(map* the_map, vector square){
+
+    // First check if in bounds
+    if(square.x < 0 || square.x >= the_map->width || square.y < 0 || square.y >= the_map->height){
+
+        return true;
+    }
+
+    // Then cast to int and check the static collidemap
+    // This function doesn't check living entities, it's really used more for pathfinding around walls and objects
+    return the_map->collidemap[(int)square.x + ((int)square.y * the_map->width)];
+}
+
+bool map_pathfind(map* the_map, vector start, vector goal, vector* solution){
+
+    typedef struct{
+        vector position;
+        int direction;
+        int path_length;
+        int score;
+    } node;
+
+    static const vector direction_vectors[8] = {
+        (vector){ .x = 0, .y = -1 }, // up
+        (vector){ .x = 1, .y = -1 }, // up right
+        (vector){ .x = 1, .y = 0 }, // right
+        (vector){ .x = 1, .y = 1 }, // down right
+        (vector){ .x = 0, .y = 1 }, // down
+        (vector){ .x = -1, .y = 1 }, // down left
+        (vector){ .x = -1, .y = 0 }, // left
+        (vector){ .x = -1, .y = -1 } // up left
+    };
+
+    vector goal_square = (vector){ .x = (int)goal.x, .y = (int)goal.y };
+    vector start_square = (vector){ .x = (int)start.x, .y = (int)start.y };
+
+    int frontier_size = 0;
+    int frontier_capacity = 16;
+    node* frontier = malloc(sizeof(node) * frontier_capacity);
+    int explored_size = 0;
+    int explored_capacity = 16;
+    node* explored = malloc(sizeof(node) * explored_capacity);
+
+    node start_node = (node){
+        .position = start_square,
+        .direction = -1,
+        .path_length = 0,
+        .score = abs((int)(goal_square.x - start_square.x)) + abs((int)(goal_square.y - start_square.y))
+    };
+    vector_array_push((void**)&frontier, &start_node, &frontier_size, &frontier_capacity, sizeof(node));
+
+    while(true){
+
+        if(frontier_size == 0){
+
+            printf("Pathfinding failed!\n");
+            false;
+        }
+
+        // Find the smallest cost node
+        int smallest_index = 0;
+        for(int i = 1; i < frontier_size; i++){
+
+            if(frontier[i].score < frontier[smallest_index].score){
+
+                smallest_index = i;
+            }
+        }
+
+        // Remove it from the frontier
+        node smallest = frontier[smallest_index];
+        vector_array_delete(frontier, smallest_index, &frontier_size, sizeof(node));
+
+        // Check if it's the solution
+        if(smallest.position.x == goal_square.x && smallest.position.y == goal_square.y){
+
+            (*solution) = vector_sum(start_square, direction_vectors[smallest.direction]);
+            return true;
+        }
+
+        // Add it to explored
+        vector_array_push((void**)&explored, &smallest, &explored_size, &explored_capacity, sizeof(node));
+
+        // Expand out all possible paths based on the one we've chosen
+        for(int direction = 0; direction < 8; direction++){
+
+            vector child_pos = vector_sum(smallest.position, direction_vectors[direction]);
+
+            // If the path leads to an invalid square, ignore it
+            if(map_square_occupied(the_map, child_pos)){
+
+                continue;
+            }
+
+            // If moving diagonally, make sure this movement isn't taking us through a wall corner
+            bool direction_is_diagonal = direction % 2 == 1;
+            if(direction_is_diagonal){
+
+                vector child_pos_x_component = vector_sum(smallest.position, (vector){ .x = direction_vectors[direction].x, .y = 0 });
+                vector child_pos_y_component = vector_sum(smallest.position, (vector){ .x = 0, .y = direction_vectors[direction].y });
+                if(map_square_occupied(the_map, child_pos_x_component) || map_square_occupied(the_map, child_pos_y_component)){
+
+                    continue;
+                }
+            }
+
+            // Create the child node
+            int first_direction = smallest.direction;
+            if(first_direction == -1){
+
+                first_direction = direction;
+            }
+            int path_length = smallest.path_length + 1;
+            int score = path_length + abs((int)(goal_square.x - child_pos.x)) + abs((int)(goal_square.y - child_pos.y));
+            node child = (node){
+                .position = child_pos,
+                .direction = first_direction,
+                .path_length = path_length,
+                .score = score
+            };
+
+            // Ignore this child if in explored
+            bool child_in_explored = false;
+            for(int i = 0; i < explored_size; i++){
+
+                if(child.position.x == explored[i].position.x && child.position.y == explored[i].position.y){
+
+                    child_in_explored = true;
+                    break;
+                }
+            }
+            if(child_in_explored){
+
+                continue;
+            }
+
+            // Ignore this child if in frontier
+            bool child_in_frontier = false;
+            int frontier_index = -1;
+            for(int i = 0; i < frontier_size; i++){
+
+                if(child.position.x == frontier[i].position.x && child.position.y == frontier[i].position.y){
+
+                    child_in_frontier = true;
+                    frontier_index = i;
+                    break;
+                }
+            }
+
+            if(child_in_frontier){
+
+                // If child is in frontier but with a smaller cost, replace the frontier version with the child
+                if(child.score < frontier[frontier_index].score){
+
+                    frontier[frontier_index] = child;
+                }
+                continue;
+            }
+
+            // Finally, if child is neither in frontier nor explored, add it to the frontier
+            vector_array_push((void**)&frontier, &child, &frontier_size, &frontier_capacity, sizeof(node));
+        } // End for each direction
+
+    } // End while true
+
+    free(frontier);
+    free(explored);
 }

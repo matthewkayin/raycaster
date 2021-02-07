@@ -62,8 +62,7 @@ void state_update(State* state, float delta);
 
 void player_shoot(State* state);
 
-void vector_push(void* vector, void* to_push, int* count, int* capacity, size_t unit_size);
-void vector_delete(void* vector, int index, int* count, size_t unit_size);
+void enemy_pathfind(State* state, int enemy_index, vector* enemy_target);
 
-void raycast_line_of_sight(State* state, vector origin, vector target, vector* hit);
+bool ray_intersects(State* state, vector origin, vector ray, vector target);
 void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture);

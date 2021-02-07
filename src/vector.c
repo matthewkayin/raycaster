@@ -21,7 +21,7 @@ vector vector_mult(vector a, float b){
 
 float vector_magnitude(vector a){
 
-    return (a.x * a.x) + (a.y * a.y);
+    return sqrt((a.x * a.x) + (a.y * a.y));
 }
 
 float vector_distance(vector a, vector b){

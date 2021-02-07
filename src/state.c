@@ -1,4 +1,5 @@
 #include "state.h"
+#include "vector_array.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -6,6 +7,9 @@
 
 const float PLAYER_SPEED = 0.05;
 const float PLAYER_ROTATE_SPEED = 0.5;
+
+const float ENEMY_DETECT_RADIUS = 30.0;
+const float ENEMY_SPEED = 0.02;
 
 State* state_init(){
 
@@ -43,7 +47,7 @@ State* state_init(){
                     .image = obj - 1,
                     .position = (vector){ .x = x + 0.5, .y = y + 0.5 }
                 };
-                vector_push(new_state->objects, &to_push, &new_state->object_count, &new_state->object_capacity, sizeof(sprite));
+                vector_array_push((void**)&(new_state->objects), &to_push, &new_state->object_count, &new_state->object_capacity, sizeof(sprite));
             }
 
             int entity = new_state->map->entities[x + (y * new_state->map->width)];
@@ -66,7 +70,7 @@ State* state_init(){
                         .timer = 0.0
                     }
                 };
-                vector_push(new_state->enemies, &to_push, &new_state->enemy_count, &new_state->enemy_capacity, sizeof(enemy));
+                vector_array_push((void**)&(new_state->enemies), &to_push, &new_state->enemy_count, &new_state->enemy_capacity, sizeof(enemy));
             }
         }
     }
@@ -157,7 +161,7 @@ void state_update(State* state, float delta){
             state->projectiles[i].image.position = vector_sum(state->projectiles[i].image.position, state->projectiles[i].velocity);
             if(in_wall(state, state->projectiles[i].image.position)){
 
-                vector_delete(state->projectiles, i, &state->projectile_count, sizeof(projectile));
+                vector_array_delete(state->projectiles, i, &state->projectile_count, sizeof(projectile));
             }
         }
     }
@@ -166,25 +170,39 @@ void state_update(State* state, float delta){
     for(int i = state->enemy_count - 1; i >= 0; i--){
 
         // Movement
-        vector hit;
-        raycast_line_of_sight(state, state->enemies[i].image.position, state->player_position, &hit);
-        if(hit.x != -1){
+        bool enemy_moving = false;
+        vector enemy_dist = vector_sub(state->player_position, state->enemies[i].image.position);
+        float enemy_dist_magnitude = vector_magnitude(enemy_dist);
+        if(enemy_dist_magnitude <= ENEMY_DETECT_RADIUS && enemy_dist_magnitude > ENEMY_SPEED * 2){
 
-            vector enemy_dist = vector_sum(hit, vector_mult(state->enemies[i].image.position, -1));
-            if(vector_magnitude(enemy_dist) > 0.5){
+            vector enemy_target;
+            bool success = map_pathfind(state->map, state->enemies[i].image.position, state->player_position, &enemy_target);
+            if(success){
 
-                vector enemy_velocity = vector_scale(enemy_dist, 0.04);
+                enemy_target.x += 0.5;
+                enemy_target.y += 0.5;
+                vector enemy_direction = vector_scale(vector_sub(enemy_target, state->enemies[i].image.position), 1);
+                enemy_moving = true;
+                vector enemy_velocity = vector_scale(enemy_direction, ENEMY_SPEED);
                 state->enemies[i].image.position = vector_sum(state->enemies[i].image.position, enemy_velocity);
             }
         }
 
         // Animation
-        animation* anim = &(state->enemies[i].anim);
-        anim->timer += delta;
-        if(anim->timer >= anim->duration){
+        if(enemy_moving){
 
-            state->enemies[i].image.image = state->enemies[i].image.image == anim->high_frame ? anim->low_frame : state->enemies[i].image.image + 1;
-            anim->timer -= anim->duration;
+            animation* anim = &(state->enemies[i].anim);
+            anim->timer += delta;
+            if(anim->timer >= anim->duration){
+
+                state->enemies[i].image.image = state->enemies[i].image.image == anim->high_frame ? anim->low_frame : state->enemies[i].image.image + 1;
+                anim->timer -= anim->duration;
+            }
+
+        }else{
+
+            state->enemies[i].anim.timer = 0;
+            state->enemies[i].image.image = state->enemies[i].anim.low_frame;
         }
     }
 }
@@ -198,43 +216,23 @@ void player_shoot(State* state){
         },
         .velocity = vector_scale(state->player_direction, 0.1)
     };
-    vector_push(state->projectiles, &to_create, &state->projectile_count, &state->projectile_capacity, sizeof(projectile));
+    vector_array_push((void**)&(state->projectiles), &to_create, &state->projectile_count, &state->projectile_capacity, sizeof(projectile));
 }
 
-void vector_push(void* vector, void* to_push, int* count, int* capacity, size_t unit_size){
+void enemy_pathfind(State* state, int enemy_index, vector* enemy_target){
 
-    if(*count == *capacity){
+    vector target = state->player_position;
 
-        *capacity *= 2;
-        vector = realloc(vector, unit_size * *capacity);
+    bool sees_player = ray_intersects(state, state->enemies[enemy_index].image.position, vector_sub(target, state->enemies[enemy_index].image.position), target);
+    if(sees_player){
+
+        printf("sees me\n");
+        (*enemy_target) = target;
+        return;
     }
-
-    memcpy(vector + (unit_size * *count), to_push, unit_size);
-    (*count)++;
-}
-
-void vector_delete(void* vector, int index, int* count, size_t unit_size){
-
-    if(index >= *count){
-
-        printf("Error! Tried to delete vector item index %i out of size %i; index out of bounds\n", index, *count);
-    }
-
-    for(int i = index; i < (*count) - 1; i++){
-
-        memcpy(vector + (unit_size * i), vector + (unit_size * (i + 1)), unit_size);
-    }
-    (*count)--;
 }
 
 int hits_wall(State* state, vector v){
-
-    /*
-    if(v.x == 0 || v.x == state->map_width || v.y == 0 || v.y == state->map_height){
-
-        return true;
-    }
-    */
 
     bool x_is_int = v.x == (int)v.x;
     bool y_is_int = v.y == (int)v.y;
@@ -267,20 +265,40 @@ int hits_wall(State* state, vector v){
     return -1;
 }
 
-void raycast_line_of_sight(State* state, vector origin, vector target, vector* hit){
+bool hit_tile(vector v, vector tile){
+
+    bool x_is_int = v.x == (int)v.x;
+    bool y_is_int = v.y == (int)v.y;
+
+    vector points[4] = {
+        (vector){ .x = (int)v.x, .y = (int)v.y },
+        (vector){ .x = ((int)v.x) - 1, .y = (int)v.y },
+        (vector){ .x = (int)v.x, .y = ((int)v.y) - 1 },
+        (vector){ .x = ((int)v.x) - 1, .y = ((int)v.y) - 1 }
+    };
+    bool check_point[4] = {
+        true,
+        x_is_int,
+        y_is_int,
+        x_is_int && y_is_int
+    };
+
+    for(int i = 0; i < 4; i++){
+
+        if(check_point[i] && points[i].x == tile.x && points[i].y == tile.y){
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ray_intersects(State* state, vector origin, vector ray, vector target){
 
     vector current = origin;
-    vector ray = (vector){ .x = target.x - origin.x, .y = target.y - origin.y };
-    float dist = vector_magnitude(ray);
     int wall_hit = hits_wall(state, current);
     while(wall_hit == -1){
-
-        // Check if we've hit the target before we hit a wall
-        if(vector_magnitude((vector){ .x = current.x - origin.x, .y = current.y - origin.y }) >= dist){
-
-            *hit = target;
-            return;
-        }
 
         vector x_step = ZERO_VECTOR;
         vector y_step = ZERO_VECTOR;
@@ -336,8 +354,10 @@ void raycast_line_of_sight(State* state, vector origin, vector target, vector* h
         wall_hit = hits_wall(state, current);
     } // End while
 
-    // Indicates hit wall before hit target
-    *hit = (vector){ .x = -1, .y = -1 };
+    float wall_distance = vector_distance(origin, current);
+    float target_distance = vector_distance(origin, target);
+
+    return target_distance <= wall_distance;
 }
 
 void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture){
