@@ -2,6 +2,7 @@
 
 #include "vector.h"
 #include "map.h"
+#include "enemy.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -23,16 +24,10 @@ typedef struct animation{
 
 typedef struct projectile{
 
-    sprite image;
+    int image;
+    vector position;
     vector velocity;
 } projectile;
-
-typedef struct enemy{
-
-    sprite image;
-    vector velocity;
-    animation anim;
-} enemy;
 
 typedef struct State{
 
@@ -61,8 +56,6 @@ State* state_init();
 void state_update(State* state, float delta);
 
 void player_shoot(State* state);
-
-void enemy_pathfind(State* state, int enemy_index, vector* enemy_target);
 
 bool ray_intersects(State* state, vector origin, vector ray, vector target);
 void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture);

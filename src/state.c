@@ -8,9 +8,6 @@
 const float PLAYER_SPEED = 0.05;
 const float PLAYER_ROTATE_SPEED = 0.5;
 
-const float ENEMY_DETECT_RADIUS = 30.0;
-const float ENEMY_SPEED = 0.02;
-
 State* state_init(){
 
     State* new_state = (State*)malloc(sizeof(State));
@@ -58,17 +55,9 @@ State* state_init(){
             }else if(entity == 2){
 
                 enemy to_push = (enemy){
-                    .image = (sprite){
-                        .image = 1,
-                        .position = (vector){ .x = x + 0.5, .y = y + 0.5 }
-                    },
-                    .velocity = ZERO_VECTOR,
-                    .anim = (animation){
-                        .low_frame = 0,
-                        .high_frame = 4,
-                        .duration = 6.0,
-                        .timer = 0.0
-                    }
+                    .name = ENEMY_SLIME,
+                    .current_frame = 0,
+                    .position = (vector){ .x = x + 0.5, .y = y + 0.5 }
                 };
                 vector_array_push((void**)&(new_state->enemies), &to_push, &new_state->enemy_count, &new_state->enemy_capacity, sizeof(enemy));
             }
@@ -130,7 +119,7 @@ void state_update(State* state, float delta){
         int base_index = state->object_count;
         for(int i = 0; i < state->enemy_count; i++){
 
-            sprite_colliders[i + base_index] = &(state->enemies[i].image.position);
+            sprite_colliders[i + base_index] = &(state->enemies[i].position);
         }
         for(int i = 0; i < sprite_collider_count; i++){
 
@@ -158,8 +147,8 @@ void state_update(State* state, float delta){
 
         if(state->projectiles[i].velocity.x != 0 || state->projectiles[i].velocity.y != 0){
 
-            state->projectiles[i].image.position = vector_sum(state->projectiles[i].image.position, state->projectiles[i].velocity);
-            if(in_wall(state, state->projectiles[i].image.position)){
+            state->projectiles[i].position = vector_sum(state->projectiles[i].position, state->projectiles[i].velocity);
+            if(in_wall(state, state->projectiles[i].position)){
 
                 vector_array_delete(state->projectiles, i, &state->projectile_count, sizeof(projectile));
             }
@@ -169,40 +158,39 @@ void state_update(State* state, float delta){
     // Enemy update
     for(int i = state->enemy_count - 1; i >= 0; i--){
 
+        enemy_data* current_info = &(enemy_info[state->enemies[i].name]);
+
         // Movement
         bool enemy_moving = false;
-        vector enemy_dist = vector_sub(state->player_position, state->enemies[i].image.position);
+        vector enemy_dist = vector_sub(state->player_position, state->enemies[i].position);
         float enemy_dist_magnitude = vector_magnitude(enemy_dist);
-        if(enemy_dist_magnitude <= ENEMY_DETECT_RADIUS && enemy_dist_magnitude > ENEMY_SPEED * 2){
 
-            vector enemy_target;
-            bool success = map_pathfind(state->map, state->enemies[i].image.position, state->player_position, &enemy_target);
+        vector enemy_target;
+        bool success = map_pathfind(state->map, state->enemies[i].position, state->player_position, &enemy_target);
             if(success){
 
                 enemy_target.x += 0.5;
                 enemy_target.y += 0.5;
-                vector enemy_direction = vector_scale(vector_sub(enemy_target, state->enemies[i].image.position), 1);
+                vector enemy_direction = vector_scale(vector_sub(enemy_target, state->enemies[i].position), 1);
                 enemy_moving = true;
-                vector enemy_velocity = vector_scale(enemy_direction, ENEMY_SPEED);
-                state->enemies[i].image.position = vector_sum(state->enemies[i].image.position, enemy_velocity);
+                vector enemy_velocity = vector_scale(enemy_direction, current_info->speed);
+                state->enemies[i].position = vector_sum(state->enemies[i].position, enemy_velocity);
             }
-        }
 
         // Animation
         if(enemy_moving){
 
-            animation* anim = &(state->enemies[i].anim);
-            anim->timer += delta;
-            if(anim->timer >= anim->duration){
+            state->enemies[i].animation_timer += delta;
+            if(state->enemies[i].animation_timer >= current_info->move_duration){
 
-                state->enemies[i].image.image = state->enemies[i].image.image == anim->high_frame ? anim->low_frame : state->enemies[i].image.image + 1;
-                anim->timer -= anim->duration;
+                state->enemies[i].current_frame = state->enemies[i].current_frame == current_info->move_frames - 1 ? 0 : state->enemies[i].current_frame + 1;
+                state->enemies[i].animation_timer -= current_info->move_duration;
             }
 
         }else{
 
-            state->enemies[i].anim.timer = 0;
-            state->enemies[i].image.image = state->enemies[i].anim.low_frame;
+            state->enemies[i].animation_timer = 0;
+            state->enemies[i].current_frame = 0;
         }
     }
 }
@@ -210,26 +198,11 @@ void state_update(State* state, float delta){
 void player_shoot(State* state){
 
     projectile to_create = (projectile){
-        .image = (sprite){
-            .image = 0,
-            .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3))
-        },
+        .image = 0,
+        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3)),
         .velocity = vector_scale(state->player_direction, 0.1)
     };
     vector_array_push((void**)&(state->projectiles), &to_create, &state->projectile_count, &state->projectile_capacity, sizeof(projectile));
-}
-
-void enemy_pathfind(State* state, int enemy_index, vector* enemy_target){
-
-    vector target = state->player_position;
-
-    bool sees_player = ray_intersects(state, state->enemies[enemy_index].image.position, vector_sub(target, state->enemies[enemy_index].image.position), target);
-    if(sees_player){
-
-        printf("sees me\n");
-        (*enemy_target) = target;
-        return;
-    }
 }
 
 int hits_wall(State* state, vector v){

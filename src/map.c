@@ -273,7 +273,7 @@ bool map_pathfind(map* the_map, vector start, vector goal, vector* solution){
         if(frontier_size == 0){
 
             printf("Pathfinding failed!\n");
-            false;
+            return false;
         }
 
         // Find the smallest cost node

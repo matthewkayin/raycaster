@@ -1,11 +1,14 @@
 #include "engine.h"
 #include "state.h"
+#include "enemy.h"
 
 #include <SDL2/SDL.h>
 
 void loop_game();
 
 int main(){
+
+    enemy_data_init(); // init first since needed by engine
 
     bool success = engine_init();
     if(!success){

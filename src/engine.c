@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "enemy.h"
 
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
@@ -24,7 +25,8 @@ const int TEXTURE_SIZE = 64;
 spritesheet* texture_sprites;
 spritesheet* object_sprites;
 spritesheet* projectile_sprites;
-spritesheet* enemy_sprites;
+spritesheet** enemy_move_sprites;
+spritesheet** enemy_attack_sprites;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -140,7 +142,21 @@ bool engine_init(){
     texture_sprites = engine_spritesheet_load("./res/textures.png");
     object_sprites = engine_spritesheet_load("./res/sprites.png");
     projectile_sprites = engine_spritesheet_load("./res/projectiles.png");
-    enemy_sprites = engine_spritesheet_load("./res/enemy_1.png");
+
+    enemy_move_sprites = malloc(sizeof(spritesheet*) * NUM_ENEMIES);
+    enemy_attack_sprites = malloc(sizeof(spritesheet*) * NUM_ENEMIES);
+    for(int i = 0; i < NUM_ENEMIES; i++){
+
+        char move_path[128] = "./res/";
+        strcat(move_path, enemy_info[i].name);
+        strcat(move_path, "_move.png");
+        enemy_move_sprites[i] = engine_spritesheet_load(move_path);
+
+        char attack_path[128] = "./res/";
+        strcat(attack_path, enemy_info[i].name);
+        strcat(attack_path, "_attack.png");
+        enemy_attack_sprites[i] = engine_spritesheet_load(attack_path);
+    }
 
     return true;
 }
@@ -150,7 +166,14 @@ void engine_quit(){
     engine_spritesheet_free(texture_sprites);
     engine_spritesheet_free(object_sprites);
     engine_spritesheet_free(projectile_sprites);
-    engine_spritesheet_free(enemy_sprites);
+
+    for(int i = 0; i < NUM_ENEMIES; i++){
+
+        engine_spritesheet_free(enemy_move_sprites[i]);
+        engine_spritesheet_free(enemy_attack_sprites[i]);
+    }
+    free(enemy_move_sprites);
+    free(enemy_attack_sprites);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -356,31 +379,31 @@ void engine_render_state(State* state){
     // First collect sprite info from all the different kinds of sprite arrays
     // This is done because it's easier from a game-logic perspective to store the sprites in separate arrays rather than carrying a tag on each sprite
     int sprite_count = state->object_count + state->projectile_count + state->enemy_count;
-    sprite** sprites = malloc(sizeof(sprite*) * sprite_count);
+    vector** sprite_positions = malloc(sizeof(vector*) * sprite_count);
     uint32_t** sprite_images = malloc(sizeof(uint32_t*) * sprite_count);
     float** sprite_distances = (float**)malloc(sizeof(float*) * sprite_count);
     for(int i = 0; i < state->object_count; i++){
 
-        sprites[i] = &(state->objects[i]);
-        sprite_images[i] = object_sprites->sprites[sprites[i]->image];
+        sprite_positions[i] = &(state->objects[i].position);
+        sprite_images[i] = object_sprites->sprites[state->objects[i].image];
     }
     int base_index = state->object_count;
     for(int i = 0; i < state->projectile_count; i++){
 
-        sprites[i + base_index] = &(state->projectiles[i].image);
-        sprite_images[i + base_index] = projectile_sprites->sprites[sprites[i + base_index]->image];
+        sprite_positions[i + base_index] = &(state->projectiles[i].position);
+        sprite_images[i + base_index] = projectile_sprites->sprites[state->projectiles[i].image];
     }
     base_index += state->projectile_count;
     for(int i = 0; i < state->enemy_count; i++){
 
-        sprites[i + base_index] = &(state->enemies[i].image);
-        sprite_images[i + base_index] = enemy_sprites->sprites[sprites[i + base_index]->image];
+        sprite_positions[i + base_index] = &(state->enemies[i].position);
+        sprite_images[i + base_index] = enemy_move_sprites[state->enemies[i].name]->sprites[state->enemies[i].current_frame];
     }
     for(int i = 0; i < sprite_count; i++){
 
         sprite_distances[i] = malloc(sizeof(float) * 2);
         sprite_distances[i][0] = i;
-        sprite_distances[i][1] = vector_distance(state->player_position, sprites[i]->position);
+        sprite_distances[i][1] = vector_distance(state->player_position, *(sprite_positions[i]));
     }
 
     // Now sort all the collected sprites by distance
@@ -390,7 +413,7 @@ void engine_render_state(State* state){
     // Lastly render the sprites in order from farthest to nearest
     for(int i = sprite_count - 1; i >= 0; i--){
 
-        vector sprite_render_pos = vector_sum(sprites[(int)sprite_distances[i][0]]->position, minus_player_pos);
+        vector sprite_render_pos = vector_sum(*(sprite_positions[(int)sprite_distances[i][0]]), minus_player_pos);
         float inverse_determinate = 1.0 / ((state->player_camera.x * state->player_direction.y) - (state->player_direction.x * state->player_camera.y));
         vector transform = (vector){ .x = (state->player_direction.y * sprite_render_pos.x) - (state->player_direction.x * sprite_render_pos.y), .y = (-state->player_camera.y * sprite_render_pos.x) + (state->player_camera.x * sprite_render_pos.y) };
         transform = vector_mult(transform, inverse_determinate);
@@ -444,7 +467,7 @@ void engine_render_state(State* state){
     } // End for each sprite
 
     // Clean memory from sprite casting
-    free(sprites);
+    free(sprite_positions);
     free(sprite_images);
     for(int i = 0; i < sprite_count; i++){
 
