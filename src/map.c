@@ -273,6 +273,9 @@ bool map_pathfind(map* the_map, vector start, vector goal, vector* solution){
         if(frontier_size == 0){
 
             printf("Pathfinding failed!\n");
+            bool goal_blocked = the_map->collidemap[(int)goal_square.x + ((int)goal_square.y * the_map->width)];
+            bool start_blocked = the_map->collidemap[(int)start_square.x + ((int)start_square.y * the_map->width)];
+            printf("goal is blocked? %i start is blocked? %i\n", (int)goal_blocked, (int)start_blocked);
             return false;
         }
 

@@ -86,9 +86,9 @@ void state_update(State* state, float delta){
 
         // Move player
         float move_angle = atan2(-state->player_move_dir.y, -state->player_move_dir.x) - (PI / 2);
-        vector player_velocity = vector_scale(vector_rotate(state->player_direction, move_angle), PLAYER_SPEED);
+        vector player_velocity = vector_mult(vector_scale(vector_rotate(state->player_direction, move_angle), PLAYER_SPEED), delta);
         vector player_last_pos = state->player_position;
-        state->player_position = vector_sum(state->player_position, vector_mult(player_velocity, delta));
+        state->player_position = vector_sum(state->player_position, player_velocity);
 
         // Collisions
         vector player_velocity_x_component = (vector){ .x = player_velocity.x, .y = 0 };
