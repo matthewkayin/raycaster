@@ -54,6 +54,8 @@ typedef struct State{
 
 State* state_init();
 void state_update(State* state, float delta);
+void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity);
+void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object);
 
 void player_shoot(State* state);
 

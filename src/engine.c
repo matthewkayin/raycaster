@@ -132,7 +132,7 @@ bool engine_init(){
         return false;
     }
 
-    engine_set_resolution(SCREEN_WIDTH, SCREEN_HEIGHT);
+    engine_set_resolution(1280, 720);
     screen_surface = SDL_GetWindowSurface(window);
     screen_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -397,7 +397,14 @@ void engine_render_state(State* state){
     for(int i = 0; i < state->enemy_count; i++){
 
         sprite_positions[i + base_index] = &(state->enemies[i].position);
-        sprite_images[i + base_index] = enemy_move_sprites[state->enemies[i].name]->sprites[state->enemies[i].current_frame];
+        if(state->enemies[i].state == ENEMY_STATE_ATTACKING){
+
+            sprite_images[i + base_index] = enemy_attack_sprites[state->enemies[i].name]->sprites[state->enemies[i].current_frame];
+
+        }else{
+
+            sprite_images[i + base_index] = enemy_move_sprites[state->enemies[i].name]->sprites[state->enemies[i].current_frame];
+        }
     }
     for(int i = 0; i < sprite_count; i++){
 
@@ -454,9 +461,9 @@ void engine_render_state(State* state){
 
                     int d = y - (SCREEN_HEIGHT / 2) + (sprite_height / 2);
                     int texture_y = (int)((d * TEXTURE_SIZE) / sprite_height);
-                    int soruce_index = texture_x + (texture_y * TEXTURE_SIZE);
+                    int source_index = texture_x + (texture_y * TEXTURE_SIZE);
                     int dest_index = stripe + (y * SCREEN_WIDTH);
-                    uint32_t color = sprite_image[soruce_index];
+                    uint32_t color = sprite_image[source_index];
                     if(color != COLOR_TRANSPARENT){
 
                         screen_buffer[dest_index] = color;

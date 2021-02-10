@@ -56,8 +56,11 @@ State* state_init(){
 
                 enemy to_push = (enemy){
                     .name = ENEMY_SLIME,
+                    .state = ENEMY_STATE_IDLE,
                     .current_frame = 0,
-                    .position = (vector){ .x = x + 0.5, .y = y + 0.5 }
+                    .animation_timer = 0,
+                    .position = (vector){ .x = x + 0.5, .y = y + 0.5 },
+                    .velocity = ZERO_VECTOR
                 };
                 vector_array_push((void**)&(new_state->enemies), &to_push, &new_state->enemy_count, &new_state->enemy_capacity, sizeof(enemy));
             }
@@ -91,54 +94,16 @@ void state_update(State* state, float delta){
         state->player_position = vector_sum(state->player_position, player_velocity);
 
         // Collisions
-        vector player_velocity_x_component = (vector){ .x = player_velocity.x, .y = 0 };
-        vector player_velocity_y_component = (vector){ .x = 0, .y = player_velocity.y };
+        check_wall_collisions(state, &(state->player_position), player_last_pos, player_velocity);
 
-        if(in_wall(state, state->player_position)){
-
-            bool x_caused = in_wall(state, vector_sum(player_last_pos, player_velocity_x_component));
-            bool y_caused = in_wall(state, vector_sum(player_last_pos, player_velocity_y_component));
-
-            if(x_caused){
-
-                state->player_position.x = player_last_pos.x;
-            }
-            if(y_caused){
-
-                state->player_position.y = player_last_pos.y;
-            }
-        }
-
-        // Check player sprite collisions
-        int sprite_collider_count = state->object_count + state->enemy_count;
-        vector** sprite_colliders = malloc(sizeof(vector*) * sprite_collider_count);
         for(int i = 0; i < state->object_count; i++){
 
-            sprite_colliders[i] = &(state->objects[i].position);
+            check_sprite_collision(&(state->player_position), player_last_pos, player_velocity, state->objects[i].position);
         }
-        int base_index = state->object_count;
         for(int i = 0; i < state->enemy_count; i++){
 
-            sprite_colliders[i + base_index] = &(state->enemies[i].position);
+            check_sprite_collision(&(state->player_position), player_last_pos, player_velocity, state->enemies[i].position);
         }
-        for(int i = 0; i < sprite_collider_count; i++){
-
-            if(vector_distance(state->player_position, *sprite_colliders[i]) <= 0.2){
-
-                bool x_caused = vector_distance(vector_sum(player_last_pos, player_velocity_x_component), *sprite_colliders[i]) <= 0.2;
-                bool y_caused = vector_distance(vector_sum(player_last_pos, player_velocity_y_component), *sprite_colliders[i]) <= 0.2;
-
-                if(x_caused){
-
-                    state->player_position.x = player_last_pos.x;
-                }
-                if(y_caused){
-
-                    state->player_position.y = player_last_pos.y;
-                }
-            }
-        }
-        free(sprite_colliders);
     }
 
     // Projectile movement
@@ -158,39 +123,105 @@ void state_update(State* state, float delta){
     // Enemy update
     for(int i = state->enemy_count - 1; i >= 0; i--){
 
+        enemy* current_enemy = &state->enemies[i];
         enemy_data* current_info = &(enemy_info[state->enemies[i].name]);
 
         // Movement
-        bool enemy_moving = false;
-        vector enemy_dist = vector_sub(state->player_position, state->enemies[i].position);
-        float enemy_dist_magnitude = vector_magnitude(enemy_dist);
+        vector enemy_last_pos = state->enemies[i].position;
 
-        vector enemy_target;
-        bool success = map_pathfind(state->map, state->enemies[i].position, state->player_position, &enemy_target);
-            if(success){
+        if(current_enemy->state != ENEMY_STATE_ATTACKING && vector_distance(state->player_position, current_enemy->position) <= 3.0){
 
-                enemy_target.x += 0.5;
-                enemy_target.y += 0.5;
-                vector enemy_direction = vector_scale(vector_sub(enemy_target, state->enemies[i].position), 1);
-                enemy_moving = true;
-                vector enemy_velocity = vector_scale(enemy_direction, current_info->speed);
-                state->enemies[i].position = vector_sum(state->enemies[i].position, enemy_velocity);
+            if(state->enemies[i].state != ENEMY_STATE_ATTACKING){
+
+                current_enemy->state = ENEMY_STATE_ATTACKING;
+                current_enemy->velocity = vector_scale(vector_sub(state->player_position, current_enemy->position), 0.1);
             }
+        }
 
-        // Animation
-        if(enemy_moving){
+        if(current_enemy->state == ENEMY_STATE_ATTACKING){
 
-            state->enemies[i].animation_timer += delta;
-            if(state->enemies[i].animation_timer >= current_info->move_duration){
+            if(enemy_has_hurtbox(current_enemy)){
 
-                state->enemies[i].current_frame = state->enemies[i].current_frame == current_info->move_frames - 1 ? 0 : state->enemies[i].current_frame + 1;
-                state->enemies[i].animation_timer -= current_info->move_duration;
+                current_enemy->position = vector_sum(current_enemy->position, current_enemy->velocity);
             }
 
         }else{
 
-            state->enemies[i].animation_timer = 0;
-            state->enemies[i].current_frame = 0;
+            vector enemy_target;
+            bool success = map_pathfind(state->map, current_enemy->position, state->player_position, &enemy_target);
+            if(success){
+
+                current_enemy->state = ENEMY_STATE_MOVING;
+
+                enemy_target.x += 0.5;
+                enemy_target.y += 0.5;
+                vector enemy_direction = vector_scale(vector_sub(enemy_target, current_enemy->position), 1);
+
+                current_enemy->velocity = vector_scale(enemy_direction, current_info->speed);
+                current_enemy->position = vector_sum(current_enemy->position, current_enemy->velocity);
+
+            }else{
+
+                current_enemy->state = ENEMY_STATE_IDLE;
+                current_enemy->velocity = ZERO_VECTOR;
+            }
+        }
+
+        // Check for collisions with other enemies
+        for(int j = 0; j < state->enemy_count; j++){
+
+            if(i == j){
+
+                continue;
+            }
+
+            check_sprite_collision(&(current_enemy->position), enemy_last_pos, current_enemy->velocity, state->enemies[j].position);
+        }
+
+        // After checking for collisions, check if hurt player
+        if(enemy_has_hurtbox(current_enemy) && vector_distance(current_enemy->position, state->player_position) <= 0.2){
+
+            printf("Hurt player\n");
+            current_enemy->state = ENEMY_STATE_IDLE;
+        }
+
+        // Animation
+        enemy_animation_update(current_enemy, delta);
+    }
+}
+
+void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity){
+
+    if(in_wall(state, *mover_position)){
+
+        bool x_caused = in_wall(state, vector_sum(mover_last_pos, (vector){ .x = velocity.x, .y = 0 }));
+        bool y_caused = in_wall(state, vector_sum(mover_last_pos, (vector){ .x = 0, .y = velocity.y }));
+
+        if(x_caused){
+
+            (*mover_position).x = mover_last_pos.x;
+        }
+        if(y_caused){
+
+            (*mover_position).y = mover_last_pos.y;
+        }
+    }
+}
+
+void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object){
+
+    if(vector_distance(*mover_position, object) <= 0.2){
+
+        bool x_caused = vector_distance(vector_sum(mover_last_pos, (vector){ .x = velocity.x, .y = 0 }), object) <= 0.2;
+        bool y_caused = vector_distance(vector_sum(mover_last_pos, (vector){ .x = 0, .y = velocity.y }), object) <= 0.2;
+
+        if(x_caused){
+
+            (*mover_position).x = mover_last_pos.x;
+        }
+        if(y_caused){
+
+            (*mover_position).y = mover_last_pos.y;
         }
     }
 }
