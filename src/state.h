@@ -37,6 +37,9 @@ typedef struct State{
     vector player_camera;
     float player_rotate_dir;
 
+    int player_animation_frame;
+    float player_animation_timer;
+
     map* map;
 
     sprite* objects;
@@ -56,6 +59,9 @@ State* state_init();
 void state_update(State* state, float delta);
 void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity);
 void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object);
+
+int get_player_animation_offset_x(State* state);
+int get_player_animation_offset_y(State* state);
 
 void player_shoot(State* state);
 

@@ -8,6 +8,10 @@
 const float PLAYER_SPEED = 0.05;
 const float PLAYER_ROTATE_SPEED = 0.5;
 
+const float PLAYER_ANIMATION_DURATION = 30.0;
+const int PLAYER_OFFSET_X_MAX = 4;
+const int PLAYER_OFFSET_Y_MAX = 4;
+
 State* state_init(){
 
     State* new_state = (State*)malloc(sizeof(State));
@@ -20,6 +24,9 @@ State* state_init(){
     new_state->player_direction = (vector){ .x = 0, .y = -1 };
     new_state->player_camera = (vector){ .x = 0.66, .y = 0 };
     new_state->player_rotate_dir = 0;
+
+    new_state->player_animation_frame = 0;
+    new_state->player_animation_timer = 0.0;
 
     new_state->projectile_capacity = 10;
     new_state->projectile_count = 0;
@@ -104,6 +111,17 @@ void state_update(State* state, float delta){
 
             check_sprite_collision(&(state->player_position), player_last_pos, player_velocity, state->enemies[i].position);
         }
+
+        // Head bob
+        state->player_animation_timer += delta;
+        if(state->player_animation_timer >= PLAYER_ANIMATION_DURATION){
+
+            state->player_animation_timer -= PLAYER_ANIMATION_DURATION;
+        }
+
+    }else{
+
+        state->player_animation_timer = 0;
     }
 
     // Projectile movement
@@ -224,6 +242,36 @@ void check_sprite_collision(vector* mover_position, vector mover_last_pos, vecto
             (*mover_position).y = mover_last_pos.y;
         }
     }
+}
+
+int get_player_animation_offset_x(State* state){
+
+    float half_time = PLAYER_ANIMATION_DURATION / 2;
+    float fmod_time = state->player_animation_timer;
+    bool second_half = false;
+    if(fmod_time > half_time){
+
+        fmod_time -= half_time;
+        second_half = true;
+    }
+    float percentage = fmod_time / half_time;
+
+    return (second_half ? 1 - percentage : percentage) * PLAYER_OFFSET_X_MAX;
+}
+
+int get_player_animation_offset_y(State* state){
+
+    float quarter_time = PLAYER_ANIMATION_DURATION / 4;
+    float fmod_time = state->player_animation_timer;
+    int which_quarter = 0;
+    while(fmod_time > quarter_time){
+
+        fmod_time -= quarter_time;
+        which_quarter++;
+    }
+    float percentage = fmod_time / quarter_time;
+
+    return (which_quarter % 2 == 0 ? percentage : 1 - percentage) * PLAYER_OFFSET_Y_MAX;
 }
 
 void player_shoot(State* state){

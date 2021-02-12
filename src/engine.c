@@ -28,6 +28,14 @@ spritesheet* projectile_sprites;
 spritesheet** enemy_move_sprites;
 spritesheet** enemy_attack_sprites;
 
+typedef struct anim_texture{
+    SDL_Texture* texture;
+    SDL_Rect* frame_rects;
+    int frame_count;
+} anim_texture;
+
+anim_texture* player_hand_anim;
+
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 bool is_fullscreen = false;
@@ -48,9 +56,86 @@ int frames = 0;
 int fps = 0;
 int ups = 0;
 
+SDL_Texture* engine_texture_load(const char* path){
+
+    SDL_Surface* loaded_surface = IMG_Load(path);
+    if(loaded_surface == NULL){
+
+        printf("Unable to load texture image! SDL Error %s\n", IMG_GetError());
+        return NULL;
+    }
+
+    SDL_Texture* new_texture = SDL_CreateTextureFromSurface(renderer, loaded_surface);
+    if(new_texture == NULL){
+
+        printf("Unable to create texture! SDL Error: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    SDL_FreeSurface(loaded_surface);
+    return new_texture;
+}
+
+anim_texture* engine_anim_texture_load(const char* path, int frame_width, int frame_height, int frame_count){
+
+    anim_texture* new_texture = malloc(sizeof(anim_texture));
+
+    SDL_Surface* loaded_surface = IMG_Load(path);
+    if(loaded_surface == NULL){
+
+        printf("Unable to load texture image! SDL Error %s\n", IMG_GetError());
+        return NULL;
+    }
+
+    new_texture->texture = SDL_CreateTextureFromSurface(renderer, loaded_surface);
+    if(new_texture->texture == NULL){
+
+        printf("Unable to create texture! SDL Error: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    new_texture->frame_count = frame_count;
+    new_texture->frame_rects = malloc(sizeof(SDL_Rect) * frame_count);
+    int frame_x = 0;
+    int frame_y = 0;
+    for(int i = 0; i < frame_count; i++){
+
+        new_texture->frame_rects[i] = (SDL_Rect){
+            .x = frame_x,
+            .y = frame_y,
+            .w = frame_width,
+            .h = frame_height
+        };
+
+        frame_x += frame_width;
+        if(frame_x >= loaded_surface->w){
+
+            frame_x = 0;
+            frame_y += frame_height;
+        }
+    }
+
+    SDL_FreeSurface(loaded_surface);
+
+    return new_texture;
+}
+
+void engine_anim_texture_free(anim_texture* anim){
+
+    SDL_DestroyTexture(anim->texture);
+    free(anim->frame_rects);
+    free(anim);
+}
+
 spritesheet* engine_spritesheet_load(const char* path){
 
     SDL_Surface* loaded_surface = IMG_Load(path);
+    if(loaded_surface == NULL){
+
+        printf("Unable to load spritesheet image! SDL Error: %s\n", IMG_GetError());
+        return NULL;
+    }
+
     uint32_t* loaded_surface_pixels = loaded_surface->pixels;
     int sprite_count_width = loaded_surface->w / TEXTURE_SIZE;
     int sprite_count_height = loaded_surface->h / TEXTURE_SIZE;
@@ -139,6 +224,8 @@ bool engine_init(){
 
     COLOR_TRANSPARENT = 0;
 
+    player_hand_anim = engine_anim_texture_load("./res/hand.png", 128, 128, 4);
+
     texture_sprites = engine_spritesheet_load("./res/textures.png");
     object_sprites = engine_spritesheet_load("./res/sprites.png");
     projectile_sprites = engine_spritesheet_load("./res/projectiles.png");
@@ -162,6 +249,8 @@ bool engine_init(){
 }
 
 void engine_quit(){
+
+    engine_anim_texture_free(player_hand_anim);
 
     engine_spritesheet_free(texture_sprites);
     engine_spritesheet_free(object_sprites);
@@ -296,6 +385,12 @@ void engine_render_buffer(){
 
     SDL_UnlockTexture(screen_buffer_texture);
     SDL_RenderCopy(renderer, screen_buffer_texture, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT }, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT });
+}
+
+void engine_render_anim_texture(anim_texture* texture, int frame, int x, int y){
+
+    SDL_Rect dest_rect = (SDL_Rect){ .x = x, .y = y, .w = texture->frame_rects[frame].w, .h = texture->frame_rects[frame].h };
+    SDL_RenderCopy(renderer, texture->texture, &(texture->frame_rects[frame]), &dest_rect);
 }
 
 void engine_render_state(State* state){
@@ -483,6 +578,9 @@ void engine_render_state(State* state){
     free(sprite_distances);
 
     engine_render_buffer();
+
+    // Render UI
+    engine_render_anim_texture(player_hand_anim, 0, SCREEN_WIDTH - 160 + get_player_animation_offset_x(state), SCREEN_HEIGHT - 128 + get_player_animation_offset_y(state));
 
     engine_render_fps();
     SDL_RenderPresent(renderer);
