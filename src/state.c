@@ -154,11 +154,11 @@ void state_update(State* state, float delta){
 
     for(int i = 0; i < state->object_count; i++){
 
-        check_sprite_collision(&(state->player_position), player_last_pos, state->player_velocity, state->objects[i].position);
+        check_sprite_collision(&(state->player_position), player_last_pos, state->player_velocity, state->objects[i].position, 0.2);
     }
     for(int i = 0; i < state->enemy_count; i++){
 
-        check_sprite_collision(&(state->player_position), player_last_pos, state->player_velocity, state->enemies[i].position);
+        check_sprite_collision(&(state->player_position), player_last_pos, state->player_velocity, state->enemies[i].position, 0.2);
     }
 
     // Player animation update
@@ -276,7 +276,7 @@ void state_update(State* state, float delta){
                 continue;
             }
 
-            check_sprite_collision(&(current_enemy->position), enemy_last_pos, current_enemy->velocity, state->enemies[j].position);
+            check_sprite_collision(&(current_enemy->position), enemy_last_pos, current_enemy->velocity, state->enemies[j].position, 0.5);
         }
 
         // After checking for collisions, check if hurt player
@@ -331,12 +331,12 @@ void check_rect_wall_collisions(State* state, vector* mover_position, vector mov
     }
 }
 
-void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object){
+void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object, float collision_dist){
 
-    if(vector_distance(*mover_position, object) <= 0.2){
+    if(vector_distance(*mover_position, object) <= collision_dist){
 
-        bool x_caused = vector_distance(vector_sum(mover_last_pos, (vector){ .x = velocity.x, .y = 0 }), object) <= 0.2;
-        bool y_caused = vector_distance(vector_sum(mover_last_pos, (vector){ .x = 0, .y = velocity.y }), object) <= 0.2;
+        bool x_caused = vector_distance(vector_sum(mover_last_pos, (vector){ .x = velocity.x, .y = 0 }), object) <= collision_dist;
+        bool y_caused = vector_distance(vector_sum(mover_last_pos, (vector){ .x = 0, .y = velocity.y }), object) <= collision_dist;
 
         if(x_caused){
 

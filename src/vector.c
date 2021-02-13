@@ -48,7 +48,7 @@ vector vector_rotate(vector a, float b){
 
 int partition(float** array, int low, int high){
 
-    int pivot = array[high][1];
+    float pivot = array[high][1];
     int i = low - 1;
 
     for(int j = low; j <= high - 1; j++){
@@ -56,8 +56,8 @@ int partition(float** array, int low, int high){
         if(array[j][1] < pivot){
 
             i++;
-            int temp_key = array[i][0];
-            int temp_val = array[i][1];
+            float temp_key = array[i][0];
+            float temp_val = array[i][1];
             array[i][0] = array[j][0];
             array[i][1] = array[j][1];
             array[j][0] = temp_key;
@@ -65,8 +65,8 @@ int partition(float** array, int low, int high){
         }
     }
 
-    int temp_key = array[i + 1][0];
-    int temp_val = array[i + 1][1];
+    float temp_key = array[i + 1][0];
+    float temp_val = array[i + 1][1];
     array[i + 1][0] = array[high][0];
     array[i + 1][1] = array[high][1];
     array[high][0] = temp_key;

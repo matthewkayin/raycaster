@@ -63,7 +63,7 @@ State* state_init();
 void state_update(State* state, float delta);
 void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity);
 void check_rect_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity, float rect_size);
-void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object);
+void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object, float collision_dist);
 
 int get_player_animation_offset_x(State* state);
 int get_player_animation_offset_y(State* state);
