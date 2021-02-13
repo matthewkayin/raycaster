@@ -69,6 +69,7 @@ int get_player_animation_offset_x(State* state);
 int get_player_animation_offset_y(State* state);
 
 void player_knockback(State* state, vector impact_vector);
+void player_cast_kinetic(State* state);
 void player_shoot(State* state);
 void player_spawn_fireball(State* state);
 

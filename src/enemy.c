@@ -11,14 +11,18 @@ void enemy_data_init(){
     enemy_info[ENEMY_SLIME] = (enemy_data){
 
         .name = "slime",
+
         .move_frames = 5,
         .move_duration = 6.0,
+
         .attack_frames = 21,
         .attack_danger_frame = 8,
         .attack_safe_frame = 15,
         .attack_duration = 5.0,
+
         .speed = 0.02,
-        .attack_radius = 2.0
+        .attack_speed = 0.1,
+        .attack_radius = 3.0
     };
 }
 
@@ -27,6 +31,11 @@ void enemy_animation_update(enemy* the_enemy, float delta){
     if(the_enemy->state == ENEMY_STATE_IDLE){
 
         the_enemy->animation_timer = 0;
+        the_enemy->current_frame = 0;
+        return;
+    }
+    if(the_enemy->state == ENEMY_STATE_KNOCKBACK){
+
         the_enemy->current_frame = 0;
         return;
     }

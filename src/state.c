@@ -13,7 +13,7 @@ const int PLAYER_ANIMATION_STATE_WALK = 1;
 const int PLAYER_ANIMATION_STATE_SPELLCAST = 2;
 
 const float PLAYER_ANIMATION_WALK_DURATION = 30.0;
-const float PLAYER_ANIMATION_SPELLCAST_DURATION = 4.0;
+const float PLAYER_ANIMATION_SPELLCAST_DURATION = 3.0;
 const int PLAYER_ANIMATION_SPELLCAST_FRAMES = 4;
 const int PLAYER_OFFSET_X_MAX = 4;
 const int PLAYER_OFFSET_Y_MAX = 4;
@@ -189,7 +189,7 @@ void state_update(State* state, float delta){
                 state->player_animation_state = PLAYER_ANIMATION_STATE_IDLE;
                 state->player_animation_frame = 0;
                 state->player_animation_timer = 0;
-                player_spawn_fireball(state);
+                player_cast_kinetic(state);
 
             }else{
 
@@ -221,7 +221,7 @@ void state_update(State* state, float delta){
         // Movement
         vector enemy_last_pos = current_enemy->position;
 
-        if(current_enemy->state != ENEMY_STATE_ATTACKING && vector_distance(state->player_position, current_enemy->position) <= 3.0){
+        if(current_enemy->state != ENEMY_STATE_ATTACKING && current_enemy->state != ENEMY_STATE_KNOCKBACK && vector_distance(state->player_position, current_enemy->position) <= current_info->attack_radius){
 
             if(state->enemies[i].state != ENEMY_STATE_ATTACKING){
 
@@ -230,13 +230,23 @@ void state_update(State* state, float delta){
             }
         }
 
-        if(current_enemy->state == ENEMY_STATE_ATTACKING){
+        if(current_enemy->state == ENEMY_STATE_KNOCKBACK){
+
+            current_enemy->animation_timer -= delta;
+            if(current_enemy->animation_timer <= 0){
+
+                current_enemy->state = ENEMY_STATE_IDLE;
+                current_enemy->animation_timer = 0;
+                current_enemy->velocity = ZERO_VECTOR;
+            }
+
+        }else if(current_enemy->state == ENEMY_STATE_ATTACKING){
 
             if(enemy_has_hurtbox(current_enemy)){
 
                 if(current_enemy->velocity.x == 0 && current_enemy->velocity.y == 0){
 
-                    current_enemy->velocity = vector_scale(vector_sub(state->player_position, current_enemy->position), 0.1);
+                    current_enemy->velocity = vector_scale(vector_sub(state->player_position, current_enemy->position), current_info->attack_speed);
                 }
 
             }else{
@@ -393,6 +403,32 @@ void player_knockback(State* state, vector impact_vector){
 
     state->player_velocity = impact_vector;
     state->player_knockback_timer = 20.0;
+}
+
+void player_cast_kinetic(State* state){
+
+    vector player_look_point = vector_sum(state->player_position, state->player_direction);
+    float player_angle = atan2(player_look_point.y - state->player_position.y, player_look_point.x - state->player_position.x) * (180 / PI);
+
+    for(int i = 0; i < state->enemy_count; i++){
+
+        enemy* current_enemy = &(state->enemies[i]);
+
+        if(vector_distance(current_enemy->position, state->player_position) > 2.5){
+
+            continue;
+        }
+
+        vector difference_vector = (vector){ .x = current_enemy->position.x - state->player_position.x, .y = current_enemy->position.y - state->player_position.y };
+        float angle = (atan2(difference_vector.y, difference_vector.x) * (180 / PI));
+        if(fabs(player_angle - angle) <= 50.0){
+
+            current_enemy->state = ENEMY_STATE_KNOCKBACK;
+            current_enemy->velocity = vector_scale(difference_vector, 0.1);
+            current_enemy->animation_timer = 20.0;
+            current_enemy->current_frame = 0;
+        }
+    }
 }
 
 void player_shoot(State* state){
