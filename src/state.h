@@ -32,11 +32,15 @@ typedef struct projectile{
 typedef struct State{
 
     vector player_position;
+    vector player_velocity;
     vector player_move_dir;
     vector player_direction;
     vector player_camera;
     float player_rotate_dir;
 
+    float player_knockback_timer;
+
+    int player_animation_state;
     int player_animation_frame;
     float player_animation_timer;
 
@@ -58,12 +62,15 @@ typedef struct State{
 State* state_init();
 void state_update(State* state, float delta);
 void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity);
+void check_rect_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity, float rect_size);
 void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object);
 
 int get_player_animation_offset_x(State* state);
 int get_player_animation_offset_y(State* state);
 
+void player_knockback(State* state, vector impact_vector);
 void player_shoot(State* state);
+void player_spawn_fireball(State* state);
 
 bool ray_intersects(State* state, vector origin, vector ray, vector target);
 void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture);

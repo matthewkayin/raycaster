@@ -580,7 +580,7 @@ void engine_render_state(State* state){
     engine_render_buffer();
 
     // Render UI
-    engine_render_anim_texture(player_hand_anim, 0, SCREEN_WIDTH - 160 + get_player_animation_offset_x(state), SCREEN_HEIGHT - 128 + get_player_animation_offset_y(state));
+    engine_render_anim_texture(player_hand_anim, state->player_animation_frame, SCREEN_WIDTH - 160 + get_player_animation_offset_x(state), SCREEN_HEIGHT - 128 + get_player_animation_offset_y(state));
 
     engine_render_fps();
     SDL_RenderPresent(renderer);

@@ -49,8 +49,18 @@ void enemy_animation_update(enemy* the_enemy, float delta){
     the_enemy->animation_timer += delta;
     if(the_enemy->animation_timer >= target_duration){
 
-        the_enemy->current_frame = the_enemy->current_frame == max_frames ? 0 : the_enemy->current_frame + 1;
-        the_enemy->animation_timer -= target_duration;
+        if(the_enemy->current_frame == max_frames && the_enemy->state == ENEMY_STATE_ATTACKING){
+
+            the_enemy->state = ENEMY_STATE_IDLE;
+            the_enemy->velocity = ZERO_VECTOR;
+            the_enemy->current_frame = 0;
+            the_enemy->animation_timer = 0;
+
+        }else{
+
+            the_enemy->current_frame = the_enemy->current_frame == max_frames ? 0 : the_enemy->current_frame + 1;
+            the_enemy->animation_timer -= target_duration;
+        }
     }
 }
 

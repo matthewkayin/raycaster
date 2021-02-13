@@ -8,7 +8,13 @@
 const float PLAYER_SPEED = 0.05;
 const float PLAYER_ROTATE_SPEED = 0.5;
 
-const float PLAYER_ANIMATION_DURATION = 30.0;
+const int PLAYER_ANIMATION_STATE_IDLE = 0;
+const int PLAYER_ANIMATION_STATE_WALK = 1;
+const int PLAYER_ANIMATION_STATE_SPELLCAST = 2;
+
+const float PLAYER_ANIMATION_WALK_DURATION = 30.0;
+const float PLAYER_ANIMATION_SPELLCAST_DURATION = 4.0;
+const int PLAYER_ANIMATION_SPELLCAST_FRAMES = 4;
 const int PLAYER_OFFSET_X_MAX = 4;
 const int PLAYER_OFFSET_Y_MAX = 4;
 
@@ -20,11 +26,15 @@ State* state_init(){
     new_state->map = map_load_from_tmx("./tiled/test.tmx");
 
     new_state->player_position = (vector){ .x = 2.5, .y = 2.5 };
+    new_state->player_velocity = ZERO_VECTOR;
     new_state->player_move_dir = ZERO_VECTOR;
     new_state->player_direction = (vector){ .x = 0, .y = -1 };
     new_state->player_camera = (vector){ .x = 0.66, .y = 0 };
     new_state->player_rotate_dir = 0;
 
+    new_state->player_knockback_timer = 0;
+
+    new_state->player_animation_state = PLAYER_ANIMATION_STATE_IDLE;
     new_state->player_animation_frame = 0;
     new_state->player_animation_timer = 0.0;
 
@@ -83,6 +93,24 @@ bool in_wall(State* state, vector v){
     return state->map->wall[index] != 0;
 }
 
+bool rect_in_wall(State* state, vector rect_pos, vector rect_dim){
+
+    int indeces[4] = {
+        (int)rect_pos.x + ((int)rect_pos.y * state->map->width),
+        (int)(rect_pos.x + rect_dim.x) + ((int)rect_pos.y * state->map->width),
+        (int)rect_pos.x + ((int)(rect_pos.y + rect_dim.y) * state->map->width),
+        (int)(rect_pos.x + rect_dim.x) + ((int)(rect_pos.y + rect_dim.y) * state->map->width)
+    };
+
+    bool is_in_wall = false;
+    for(int i = 0; i < 4; i++){
+
+        is_in_wall |= state->map->wall[indeces[i]] != 0;
+    }
+
+    return is_in_wall;
+}
+
 void state_update(State* state, float delta){
 
     // Rotate player and player camera
@@ -91,37 +119,83 @@ void state_update(State* state, float delta){
     state->player_direction = vector_rotate(state->player_direction, rotation_amount);
     state->player_camera = vector_rotate(state->player_camera, rotation_amount);
 
+    bool player_inputs_movement = state->player_move_dir.x != 0 || state->player_move_dir.y != 0;
+
     // Player movement
-    if(state->player_move_dir.x != 0 || state->player_move_dir.y != 0){
+    vector player_last_pos = state->player_position;
+    if(state->player_knockback_timer != 0){
+
+        state->player_knockback_timer -= delta;
+        if(state->player_knockback_timer <= 0){
+
+            state->player_knockback_timer = 0;
+            state->player_velocity = ZERO_VECTOR;
+        }
+
+    }else if(player_inputs_movement){
 
         // Move player
         float move_angle = atan2(-state->player_move_dir.y, -state->player_move_dir.x) - (PI / 2);
-        vector player_velocity = vector_mult(vector_scale(vector_rotate(state->player_direction, move_angle), PLAYER_SPEED), delta);
-        vector player_last_pos = state->player_position;
-        state->player_position = vector_sum(state->player_position, player_velocity);
-
-        // Collisions
-        check_wall_collisions(state, &(state->player_position), player_last_pos, player_velocity);
-
-        for(int i = 0; i < state->object_count; i++){
-
-            check_sprite_collision(&(state->player_position), player_last_pos, player_velocity, state->objects[i].position);
-        }
-        for(int i = 0; i < state->enemy_count; i++){
-
-            check_sprite_collision(&(state->player_position), player_last_pos, player_velocity, state->enemies[i].position);
-        }
-
-        // Head bob
-        state->player_animation_timer += delta;
-        if(state->player_animation_timer >= PLAYER_ANIMATION_DURATION){
-
-            state->player_animation_timer -= PLAYER_ANIMATION_DURATION;
-        }
+        state->player_velocity = vector_mult(vector_scale(vector_rotate(state->player_direction, move_angle), PLAYER_SPEED), delta);
 
     }else{
 
+        state->player_velocity = ZERO_VECTOR;
+    }
+
+    state->player_position = vector_sum(state->player_position, state->player_velocity);
+
+    // Collisions
+    if(state->player_knockback_timer != 0 && in_wall(state, state->player_position)){
+
+        state->player_knockback_timer = 0;
+    }
+    check_wall_collisions(state, &(state->player_position), player_last_pos, state->player_velocity);
+
+    for(int i = 0; i < state->object_count; i++){
+
+        check_sprite_collision(&(state->player_position), player_last_pos, state->player_velocity, state->objects[i].position);
+    }
+    for(int i = 0; i < state->enemy_count; i++){
+
+        check_sprite_collision(&(state->player_position), player_last_pos, state->player_velocity, state->enemies[i].position);
+    }
+
+    // Player animation update
+    if(state->player_animation_state != PLAYER_ANIMATION_STATE_SPELLCAST){
+
+        state->player_animation_state = player_inputs_movement ? PLAYER_ANIMATION_STATE_WALK : PLAYER_ANIMATION_STATE_IDLE;
+    }
+    if(state->player_animation_state == PLAYER_ANIMATION_STATE_IDLE){
+
         state->player_animation_timer = 0;
+
+    }else if(state->player_animation_state == PLAYER_ANIMATION_STATE_WALK){
+
+        state->player_animation_timer += delta;
+        if(state->player_animation_timer >= PLAYER_ANIMATION_WALK_DURATION){
+
+            state->player_animation_timer -= PLAYER_ANIMATION_WALK_DURATION;
+        }
+
+    }else if(state->player_animation_state == PLAYER_ANIMATION_STATE_SPELLCAST){
+
+        state->player_animation_timer += delta;
+        if(state->player_animation_timer >= PLAYER_ANIMATION_SPELLCAST_DURATION){
+
+            state->player_animation_frame++;
+            if(state->player_animation_frame == PLAYER_ANIMATION_SPELLCAST_FRAMES){
+
+                state->player_animation_state = PLAYER_ANIMATION_STATE_IDLE;
+                state->player_animation_frame = 0;
+                state->player_animation_timer = 0;
+                player_spawn_fireball(state);
+
+            }else{
+
+                state->player_animation_timer -= PLAYER_ANIMATION_SPELLCAST_DURATION;
+            }
+        }
     }
 
     // Projectile movement
@@ -145,14 +219,14 @@ void state_update(State* state, float delta){
         enemy_data* current_info = &(enemy_info[state->enemies[i].name]);
 
         // Movement
-        vector enemy_last_pos = state->enemies[i].position;
+        vector enemy_last_pos = current_enemy->position;
 
         if(current_enemy->state != ENEMY_STATE_ATTACKING && vector_distance(state->player_position, current_enemy->position) <= 3.0){
 
             if(state->enemies[i].state != ENEMY_STATE_ATTACKING){
 
                 current_enemy->state = ENEMY_STATE_ATTACKING;
-                current_enemy->velocity = vector_scale(vector_sub(state->player_position, current_enemy->position), 0.1);
+                current_enemy->velocity = ZERO_VECTOR;
             }
         }
 
@@ -160,7 +234,14 @@ void state_update(State* state, float delta){
 
             if(enemy_has_hurtbox(current_enemy)){
 
-                current_enemy->position = vector_sum(current_enemy->position, current_enemy->velocity);
+                if(current_enemy->velocity.x == 0 && current_enemy->velocity.y == 0){
+
+                    current_enemy->velocity = vector_scale(vector_sub(state->player_position, current_enemy->position), 0.1);
+                }
+
+            }else{
+
+                current_enemy->velocity = ZERO_VECTOR;
             }
 
         }else{
@@ -176,7 +257,6 @@ void state_update(State* state, float delta){
                 vector enemy_direction = vector_scale(vector_sub(enemy_target, current_enemy->position), 1);
 
                 current_enemy->velocity = vector_scale(enemy_direction, current_info->speed);
-                current_enemy->position = vector_sum(current_enemy->position, current_enemy->velocity);
 
             }else{
 
@@ -184,6 +264,9 @@ void state_update(State* state, float delta){
                 current_enemy->velocity = ZERO_VECTOR;
             }
         }
+
+        current_enemy->position = vector_sum(current_enemy->position, current_enemy->velocity);
+        check_rect_wall_collisions(state, &(current_enemy->position), enemy_last_pos, current_enemy->velocity, 0.5);
 
         // Check for collisions with other enemies
         for(int j = 0; j < state->enemy_count; j++){
@@ -199,8 +282,9 @@ void state_update(State* state, float delta){
         // After checking for collisions, check if hurt player
         if(enemy_has_hurtbox(current_enemy) && vector_distance(current_enemy->position, state->player_position) <= 0.2){
 
-            printf("Hurt player\n");
+            player_knockback(state, current_enemy->velocity);
             current_enemy->state = ENEMY_STATE_IDLE;
+            current_enemy->velocity = ZERO_VECTOR;
         }
 
         // Animation
@@ -217,11 +301,32 @@ void check_wall_collisions(State* state, vector* mover_position, vector mover_la
 
         if(x_caused){
 
-            (*mover_position).x = mover_last_pos.x;
+            mover_position->x = mover_last_pos.x;
         }
         if(y_caused){
 
-            (*mover_position).y = mover_last_pos.y;
+            mover_position->y = mover_last_pos.y;
+        }
+    }
+}
+
+void check_rect_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity, float rect_size){
+
+    vector rect_pos = (vector){ .x = mover_position->x - (rect_size / 2), .y = mover_position->y - (rect_size / 2) };
+    vector rect_last_pos = (vector){ .x = mover_last_pos.x - (rect_size / 2), .y = mover_last_pos.y - (rect_size / 2) };
+    vector rect_dim = (vector){ .x = rect_size, .y = rect_size };
+    if(rect_in_wall(state, rect_pos, rect_dim)){
+
+        bool x_caused = rect_in_wall(state, vector_sum(rect_last_pos, (vector){ .x = velocity.x, .y = 0 }), rect_dim);
+        bool y_caused = rect_in_wall(state, vector_sum(rect_last_pos, (vector){ .x = 0, .y = velocity.y }), rect_dim);
+
+        if(x_caused){
+
+            mover_position->x = mover_last_pos.x;
+        }
+        if(y_caused){
+
+            mover_position->y = mover_last_pos.y;
         }
     }
 }
@@ -246,7 +351,12 @@ void check_sprite_collision(vector* mover_position, vector mover_last_pos, vecto
 
 int get_player_animation_offset_x(State* state){
 
-    float half_time = PLAYER_ANIMATION_DURATION / 2;
+    if(state->player_animation_state == PLAYER_ANIMATION_STATE_SPELLCAST){
+
+        return 0;
+    }
+
+    float half_time = PLAYER_ANIMATION_WALK_DURATION / 2;
     float fmod_time = state->player_animation_timer;
     bool second_half = false;
     if(fmod_time > half_time){
@@ -261,7 +371,12 @@ int get_player_animation_offset_x(State* state){
 
 int get_player_animation_offset_y(State* state){
 
-    float quarter_time = PLAYER_ANIMATION_DURATION / 4;
+    if(state->player_animation_state == PLAYER_ANIMATION_STATE_SPELLCAST){
+
+        return 0;
+    }
+
+    float quarter_time = PLAYER_ANIMATION_WALK_DURATION / 4;
     float fmod_time = state->player_animation_timer;
     int which_quarter = 0;
     while(fmod_time > quarter_time){
@@ -274,11 +389,24 @@ int get_player_animation_offset_y(State* state){
     return (which_quarter % 2 == 0 ? percentage : 1 - percentage) * PLAYER_OFFSET_Y_MAX;
 }
 
+void player_knockback(State* state, vector impact_vector){
+
+    state->player_velocity = impact_vector;
+    state->player_knockback_timer = 20.0;
+}
+
 void player_shoot(State* state){
+
+    state->player_animation_state = PLAYER_ANIMATION_STATE_SPELLCAST;
+    state->player_animation_frame = 0;
+    state->player_animation_timer = 0;
+}
+
+void player_spawn_fireball(State* state){
 
     projectile to_create = (projectile){
         .image = 0,
-        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.3)),
+        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.5)),
         .velocity = vector_scale(state->player_direction, 0.1)
     };
     vector_array_push((void**)&(state->projectiles), &to_create, &state->projectile_count, &state->projectile_capacity, sizeof(projectile));
