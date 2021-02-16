@@ -416,8 +416,14 @@ vector player_get_animation_offset(State* state){
 
 void player_knockback(State* state, vector impact_vector){
 
+    // Knockback player
     state->player_velocity = impact_vector;
     state->player_knockback_timer = 20.0;
+
+    // Reset animation / interrupt current spellcast
+    state->player_animation_state = PLAYER_ANIMATION_STATE_IDLE;
+    state->player_animation_frame = 0;
+    state->player_animation_timer = 0;
 }
 
 void player_cast_start(State* state){
