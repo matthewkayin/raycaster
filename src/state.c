@@ -5,19 +5,23 @@
 #include <string.h>
 #include <math.h>
 
+// Player movement constants
 const float PLAYER_SPEED = 0.05;
 const float PLAYER_ROTATE_SPEED = 0.5;
 
+// Player animation states
 const int PLAYER_ANIMATION_STATE_IDLE = 0;
 const int PLAYER_ANIMATION_STATE_WALK = 1;
 const int PLAYER_ANIMATION_STATE_SPELLCAST = 2;
 
+// Player animation constants
 const float PLAYER_ANIMATION_WALK_DURATION = 30.0;
 const float PLAYER_ANIMATION_SPELLCAST_DURATION = 3.0;
 const int PLAYER_ANIMATION_SPELLCAST_FRAMES = 4;
 const int PLAYER_OFFSET_X_MAX = 4;
 const int PLAYER_OFFSET_Y_MAX = 4;
 
+// Init
 State* state_init(){
 
     State* new_state = (State*)malloc(sizeof(State));
@@ -87,29 +91,7 @@ State* state_init(){
     return new_state;
 }
 
-bool in_wall(State* state, vector v){
-
-    int index = (int)v.x + ((int)v.y * state->map->width);
-    return state->map->wall[index] != 0;
-}
-
-bool rect_in_wall(State* state, vector rect_pos, vector rect_dim){
-
-    int indeces[4] = {
-        (int)rect_pos.x + ((int)rect_pos.y * state->map->width),
-        (int)(rect_pos.x + rect_dim.x) + ((int)rect_pos.y * state->map->width),
-        (int)rect_pos.x + ((int)(rect_pos.y + rect_dim.y) * state->map->width),
-        (int)(rect_pos.x + rect_dim.x) + ((int)(rect_pos.y + rect_dim.y) * state->map->width)
-    };
-
-    bool is_in_wall = false;
-    for(int i = 0; i < 4; i++){
-
-        is_in_wall |= state->map->wall[indeces[i]] != 0;
-    }
-
-    return is_in_wall;
-}
+// Updates
 
 void state_update(State* state, float delta){
 
@@ -215,91 +197,122 @@ void state_update(State* state, float delta){
     // Enemy update
     for(int i = state->enemy_count - 1; i >= 0; i--){
 
-        enemy* current_enemy = &state->enemies[i];
-        enemy_data* current_info = &(enemy_info[state->enemies[i].name]);
+        enemy_update(state, i, delta);
+    }
+}
 
-        // Movement
-        vector enemy_last_pos = current_enemy->position;
+void enemy_update(State* state, int index, float delta){
 
-        if(current_enemy->state != ENEMY_STATE_ATTACKING && current_enemy->state != ENEMY_STATE_KNOCKBACK && vector_distance(state->player_position, current_enemy->position) <= current_info->attack_radius){
+    enemy* current_enemy = &state->enemies[index];
+    enemy_data* current_info = &(enemy_info[state->enemies[index].name]);
 
-            if(state->enemies[i].state != ENEMY_STATE_ATTACKING){
+    // Movement
+    vector enemy_last_pos = current_enemy->position;
 
-                current_enemy->state = ENEMY_STATE_ATTACKING;
-                current_enemy->velocity = ZERO_VECTOR;
-            }
+    if(current_enemy->state != ENEMY_STATE_ATTACKING && current_enemy->state != ENEMY_STATE_KNOCKBACK && vector_distance(state->player_position, current_enemy->position) <= current_info->attack_radius){
+
+        if(state->enemies[index].state != ENEMY_STATE_ATTACKING){
+
+            current_enemy->state = ENEMY_STATE_ATTACKING;
+            current_enemy->velocity = ZERO_VECTOR;
+        }
+    }
+
+    if(current_enemy->state == ENEMY_STATE_KNOCKBACK){
+
+        current_enemy->animation_timer -= delta;
+        if(current_enemy->animation_timer <= 0){
+
+            current_enemy->state = ENEMY_STATE_IDLE;
+            current_enemy->animation_timer = 0;
+            current_enemy->velocity = ZERO_VECTOR;
         }
 
-        if(current_enemy->state == ENEMY_STATE_KNOCKBACK){
+    }else if(current_enemy->state == ENEMY_STATE_ATTACKING){
 
-            current_enemy->animation_timer -= delta;
-            if(current_enemy->animation_timer <= 0){
+        if(enemy_has_hurtbox(current_enemy)){
 
-                current_enemy->state = ENEMY_STATE_IDLE;
-                current_enemy->animation_timer = 0;
-                current_enemy->velocity = ZERO_VECTOR;
-            }
+            if(current_enemy->velocity.x == 0 && current_enemy->velocity.y == 0){
 
-        }else if(current_enemy->state == ENEMY_STATE_ATTACKING){
-
-            if(enemy_has_hurtbox(current_enemy)){
-
-                if(current_enemy->velocity.x == 0 && current_enemy->velocity.y == 0){
-
-                    current_enemy->velocity = vector_scale(vector_sub(state->player_position, current_enemy->position), current_info->attack_speed);
-                }
-
-            }else{
-
-                current_enemy->velocity = ZERO_VECTOR;
+                current_enemy->velocity = vector_scale(vector_sub(state->player_position, current_enemy->position), current_info->attack_speed);
             }
 
         }else{
 
-            vector enemy_target;
-            bool success = map_pathfind(state->map, current_enemy->position, state->player_position, &enemy_target);
-            if(success){
-
-                current_enemy->state = ENEMY_STATE_MOVING;
-
-                enemy_target.x += 0.5;
-                enemy_target.y += 0.5;
-                vector enemy_direction = vector_scale(vector_sub(enemy_target, current_enemy->position), 1);
-
-                current_enemy->velocity = vector_scale(enemy_direction, current_info->speed);
-
-            }else{
-
-                current_enemy->state = ENEMY_STATE_IDLE;
-                current_enemy->velocity = ZERO_VECTOR;
-            }
-        }
-
-        current_enemy->position = vector_sum(current_enemy->position, current_enemy->velocity);
-        check_rect_wall_collisions(state, &(current_enemy->position), enemy_last_pos, current_enemy->velocity, 0.5);
-
-        // Check for collisions with other enemies
-        for(int j = 0; j < state->enemy_count; j++){
-
-            if(i == j){
-
-                continue;
-            }
-
-            check_sprite_collision(&(current_enemy->position), enemy_last_pos, current_enemy->velocity, state->enemies[j].position, 0.5);
-        }
-
-        // After checking for collisions, check if hurt player
-        if(enemy_has_hurtbox(current_enemy) && vector_distance(current_enemy->position, state->player_position) <= 0.2){
-
-            player_knockback(state, current_enemy->velocity);
-            current_enemy->state = ENEMY_STATE_IDLE;
             current_enemy->velocity = ZERO_VECTOR;
         }
 
-        // Animation
-        enemy_animation_update(current_enemy, delta);
+    }else{
+
+        vector enemy_target;
+        bool success = map_pathfind(state->map, current_enemy->position, state->player_position, &enemy_target);
+        if(success){
+
+            current_enemy->state = ENEMY_STATE_MOVING;
+
+            enemy_target.x += 0.5;
+            enemy_target.y += 0.5;
+            vector enemy_direction = vector_scale(vector_sub(enemy_target, current_enemy->position), 1);
+
+            current_enemy->velocity = vector_scale(enemy_direction, current_info->speed);
+
+        }else{
+
+            current_enemy->state = ENEMY_STATE_IDLE;
+            current_enemy->velocity = ZERO_VECTOR;
+        }
     }
+
+    current_enemy->position = vector_sum(current_enemy->position, current_enemy->velocity);
+    check_rect_wall_collisions(state, &(current_enemy->position), enemy_last_pos, current_enemy->velocity, 0.5);
+
+    // Check for collisions with other enemies
+    for(int j = 0; j < state->enemy_count; j++){
+
+        if(index == j){
+
+            continue;
+        }
+
+        check_sprite_collision(&(current_enemy->position), enemy_last_pos, current_enemy->velocity, state->enemies[j].position, 0.5);
+    }
+
+    // After checking for collisions, check if hurt player
+    if(enemy_has_hurtbox(current_enemy) && vector_distance(current_enemy->position, state->player_position) <= 0.2){
+
+        player_knockback(state, current_enemy->velocity);
+        current_enemy->state = ENEMY_STATE_IDLE;
+        current_enemy->velocity = ZERO_VECTOR;
+    }
+
+    // Animation
+    enemy_animation_update(current_enemy, delta);
+}
+
+// Collision helpers / handlers
+
+bool in_wall(State* state, vector v){
+
+    int index = (int)v.x + ((int)v.y * state->map->width);
+    return state->map->wall[index] != 0;
+}
+
+bool rect_in_wall(State* state, vector rect_pos, vector rect_dim){
+
+    int indeces[4] = {
+        (int)rect_pos.x + ((int)rect_pos.y * state->map->width),
+        (int)(rect_pos.x + rect_dim.x) + ((int)rect_pos.y * state->map->width),
+        (int)rect_pos.x + ((int)(rect_pos.y + rect_dim.y) * state->map->width),
+        (int)(rect_pos.x + rect_dim.x) + ((int)(rect_pos.y + rect_dim.y) * state->map->width)
+    };
+
+    bool is_in_wall = false;
+    for(int i = 0; i < 4; i++){
+
+        is_in_wall |= state->map->wall[indeces[i]] != 0;
+    }
+
+    return is_in_wall;
 }
 
 void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity){
@@ -359,50 +372,59 @@ void check_sprite_collision(vector* mover_position, vector mover_last_pos, vecto
     }
 }
 
-int get_player_animation_offset_x(State* state){
+// Player
+
+vector player_get_animation_offset(State* state){
 
     if(state->player_animation_state == PLAYER_ANIMATION_STATE_SPELLCAST){
 
-        return 0;
+        return ZERO_VECTOR;
+
+    }else{
+
+        vector offset;
+
+        // compute x offset
+        float half_time = PLAYER_ANIMATION_WALK_DURATION / 2;
+        float fmod_time = state->player_animation_timer;
+        bool second_half = false;
+        if(fmod_time > half_time){
+
+            fmod_time -= half_time;
+            second_half = true;
+        }
+        float percentage = fmod_time / half_time;
+
+        offset.x = (second_half ? 1 - percentage : percentage) * PLAYER_OFFSET_X_MAX;
+
+        // compute y offset
+        float quarter_time = PLAYER_ANIMATION_WALK_DURATION / 4;
+        fmod_time = state->player_animation_timer;
+        int which_quarter = 0;
+        while(fmod_time > quarter_time){
+
+            fmod_time -= quarter_time;
+            which_quarter++;
+        }
+        percentage = fmod_time / quarter_time;
+
+        offset.y = (which_quarter % 2 == 0 ? percentage : 1 - percentage) * PLAYER_OFFSET_Y_MAX;
+
+        return offset;
     }
-
-    float half_time = PLAYER_ANIMATION_WALK_DURATION / 2;
-    float fmod_time = state->player_animation_timer;
-    bool second_half = false;
-    if(fmod_time > half_time){
-
-        fmod_time -= half_time;
-        second_half = true;
-    }
-    float percentage = fmod_time / half_time;
-
-    return (second_half ? 1 - percentage : percentage) * PLAYER_OFFSET_X_MAX;
-}
-
-int get_player_animation_offset_y(State* state){
-
-    if(state->player_animation_state == PLAYER_ANIMATION_STATE_SPELLCAST){
-
-        return 0;
-    }
-
-    float quarter_time = PLAYER_ANIMATION_WALK_DURATION / 4;
-    float fmod_time = state->player_animation_timer;
-    int which_quarter = 0;
-    while(fmod_time > quarter_time){
-
-        fmod_time -= quarter_time;
-        which_quarter++;
-    }
-    float percentage = fmod_time / quarter_time;
-
-    return (which_quarter % 2 == 0 ? percentage : 1 - percentage) * PLAYER_OFFSET_Y_MAX;
 }
 
 void player_knockback(State* state, vector impact_vector){
 
     state->player_velocity = impact_vector;
     state->player_knockback_timer = 20.0;
+}
+
+void player_cast_start(State* state){
+
+    state->player_animation_state = PLAYER_ANIMATION_STATE_SPELLCAST;
+    state->player_animation_frame = 0;
+    state->player_animation_timer = 0;
 }
 
 void player_cast_kinetic(State* state){
@@ -431,22 +453,7 @@ void player_cast_kinetic(State* state){
     }
 }
 
-void player_shoot(State* state){
-
-    state->player_animation_state = PLAYER_ANIMATION_STATE_SPELLCAST;
-    state->player_animation_frame = 0;
-    state->player_animation_timer = 0;
-}
-
-void player_spawn_fireball(State* state){
-
-    projectile to_create = (projectile){
-        .image = 0,
-        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.5)),
-        .velocity = vector_scale(state->player_direction, 0.1)
-    };
-    vector_array_push((void**)&(state->projectiles), &to_create, &state->projectile_count, &state->projectile_capacity, sizeof(projectile));
-}
+// Raycasting
 
 int hits_wall(State* state, vector v){
 

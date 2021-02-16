@@ -106,7 +106,7 @@ int main(){
 
                 if(e.button.button == SDL_BUTTON_LEFT){
 
-                    player_shoot(state);
+                    player_cast_start(state);
                 }
             }
         }

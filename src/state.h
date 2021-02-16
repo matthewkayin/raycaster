@@ -59,19 +59,28 @@ typedef struct State{
     int enemy_capacity;
 } State;
 
+// Init
 State* state_init();
+
+// Updates
 void state_update(State* state, float delta);
+void enemy_update(State* state, int index, float delta);
+
+// Collision helpers / handlers
+bool in_wall(State* state, vector v);
+bool rect_in_wall(State* state, vector rect_pos, vector rect_dim);
 void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity);
 void check_rect_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity, float rect_size);
 void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object, float collision_dist);
 
-int get_player_animation_offset_x(State* state);
-int get_player_animation_offset_y(State* state);
+// Player
+vector player_get_animation_offset(State* state); // returns the offset of the player animation, used to create the head bobbing effect when walking
+void player_knockback(State* state, vector impact_vector); // knocks back the player with the force of the impact vector
+void player_cast_start(State* state);
+void player_cast_kinetic(State* state); // causes player to cast the "kinetic" spell
 
-void player_knockback(State* state, vector impact_vector);
-void player_cast_kinetic(State* state);
-void player_shoot(State* state);
-void player_spawn_fireball(State* state);
-
-bool ray_intersects(State* state, vector origin, vector ray, vector target);
-void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture);
+// Raycasting
+int hits_wall(State* state, vector v); // returns true if point touches a wall on the map
+bool hit_tile(vector v, vector tile); // returns true if point touches an edge of a given tile
+bool ray_intersects(State* state, vector origin, vector ray, vector target); // casts a ray and returns true if it intersects with the target vector
+void render_raycast(State* state, vector origin, vector ray, float* wall_dist, int* texture_x, bool* x_sided, int* texture); // casts a ray and returns info needed for rendering
