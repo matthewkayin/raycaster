@@ -27,6 +27,7 @@ spritesheet* object_sprites;
 spritesheet* projectile_sprites;
 spritesheet** enemy_move_sprites;
 spritesheet** enemy_attack_sprites;
+spritesheet** enemy_hurt_sprites;
 
 typedef struct anim_texture{
     SDL_Texture* texture;
@@ -232,6 +233,7 @@ bool engine_init(){
 
     enemy_move_sprites = malloc(sizeof(spritesheet*) * NUM_ENEMIES);
     enemy_attack_sprites = malloc(sizeof(spritesheet*) * NUM_ENEMIES);
+    enemy_hurt_sprites = malloc(sizeof(spritesheet*) * NUM_ENEMIES);
     for(int i = 0; i < NUM_ENEMIES; i++){
 
         char move_path[128] = "./res/";
@@ -243,6 +245,11 @@ bool engine_init(){
         strcat(attack_path, enemy_info[i].name);
         strcat(attack_path, "_attack.png");
         enemy_attack_sprites[i] = engine_spritesheet_load(attack_path);
+
+        char hurt_path[128] = "./res/";
+        strcat(hurt_path, enemy_info[i].name);
+        strcat(hurt_path, "_hurt.png");
+        enemy_hurt_sprites[i] = engine_spritesheet_load(hurt_path);
     }
 
     return true;
@@ -260,9 +267,11 @@ void engine_quit(){
 
         engine_spritesheet_free(enemy_move_sprites[i]);
         engine_spritesheet_free(enemy_attack_sprites[i]);
+        engine_spritesheet_free(enemy_hurt_sprites[i]);
     }
     free(enemy_move_sprites);
     free(enemy_attack_sprites);
+    free(enemy_hurt_sprites);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -492,7 +501,11 @@ void engine_render_state(State* state){
     for(int i = 0; i < state->enemy_count; i++){
 
         sprite_positions[i + base_index] = &(state->enemies[i].position);
-        if(state->enemies[i].state == ENEMY_STATE_ATTACKING){
+        if(state->enemies[i].state == ENEMY_STATE_KNOCKBACK){
+
+            sprite_images[i + base_index] = enemy_hurt_sprites[state->enemies[i].name]->sprites[state->enemies[i].current_frame];
+
+        }else if(state->enemies[i].state == ENEMY_STATE_ATTACKING){
 
             sprite_images[i + base_index] = enemy_attack_sprites[state->enemies[i].name]->sprites[state->enemies[i].current_frame];
 
