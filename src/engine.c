@@ -85,6 +85,7 @@ anim_texture* engine_anim_texture_load(const char* path, int frame_width, int fr
     if(loaded_surface == NULL){
 
         printf("Unable to load texture image! SDL Error %s\n", IMG_GetError());
+        free(new_texture);
         return NULL;
     }
 
@@ -92,6 +93,7 @@ anim_texture* engine_anim_texture_load(const char* path, int frame_width, int fr
     if(new_texture->texture == NULL){
 
         printf("Unable to create texture! SDL Error: %s\n", SDL_GetError());
+        free(new_texture);
         return NULL;
     }
 
@@ -159,7 +161,7 @@ spritesheet* engine_spritesheet_load(const char* path){
                 for(int ty = 0; ty < TEXTURE_SIZE; ty++){
 
                     int source_index = source_base_x + tx + ((source_base_y + ty) * loaded_surface->w);
-                    int dest_index = tx + (ty * TEXTURE_SIZE);
+                    int dest_index = ty + (tx * TEXTURE_SIZE);
 
                     uint8_t r, g, b, a;
                     SDL_GetRGBA(loaded_surface_pixels[source_index], loaded_surface->format, &r, &g, &b, &a);
@@ -393,7 +395,7 @@ void engine_unlock_buffer(){
 void engine_render_buffer(){
 
     SDL_UnlockTexture(screen_buffer_texture);
-    SDL_RenderCopy(renderer, screen_buffer_texture, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT }, &(SDL_Rect){ .x = 0, .y = 0, .w = SCREEN_WIDTH, .h = SCREEN_HEIGHT });
+    SDL_RenderCopy(renderer, screen_buffer_texture, NULL, NULL);
 }
 
 void engine_render_anim_texture(anim_texture* texture, int frame, int x, int y){
@@ -472,7 +474,7 @@ void engine_render_state(State* state){
 
             int texture_y = (int)texture_pos & (TEXTURE_SIZE - 1);
             texture_pos += step;
-            int source_index = texture_x + (texture_y * TEXTURE_SIZE);
+            int source_index = texture_y + (texture_x * TEXTURE_SIZE);
             int dest_index = x + (y * SCREEN_WIDTH);
             screen_buffer[dest_index] = x_sided ? texture_sprites->sprites[texture - 1][source_index] : (texture_sprites->sprites[texture - 1][source_index] >> 1) & 8355711;
         }
@@ -569,7 +571,7 @@ void engine_render_state(State* state){
 
                     int d = y - (SCREEN_HEIGHT / 2) + (sprite_height / 2);
                     int texture_y = (int)((d * TEXTURE_SIZE) / sprite_height);
-                    int source_index = texture_x + (texture_y * TEXTURE_SIZE);
+                    int source_index = texture_y + (texture_x * TEXTURE_SIZE);
                     int dest_index = stripe + (y * SCREEN_WIDTH);
                     uint32_t color = sprite_image[source_index];
                     if(color != COLOR_TRANSPARENT){
