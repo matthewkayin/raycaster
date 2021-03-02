@@ -15,6 +15,7 @@ float z_buffer[640];
 uint32_t* screen_buffer;
 SDL_Texture* screen_buffer_texture;
 SDL_Surface* screen_surface;
+SDL_PixelFormat* screen_buffer_format;
 
 typedef struct spritesheet{
     int sprite_count;
@@ -165,7 +166,7 @@ spritesheet* engine_spritesheet_load(const char* path){
 
                     uint8_t r, g, b, a;
                     SDL_GetRGBA(loaded_surface_pixels[source_index], loaded_surface->format, &r, &g, &b, &a);
-                    sheet->sprites[sprite_index][dest_index] = a == 0 ? 0 : SDL_MapRGBA(screen_surface->format, r, g, b, a);
+                    sheet->sprites[sprite_index][dest_index] = a == 0 ? 0 : SDL_MapRGBA(screen_buffer_format, r, g, b, a);
                 }
             }
         }
@@ -225,7 +226,8 @@ bool engine_init(){
     screen_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_SetRelativeMouseMode(SDL_TRUE);
 
-    COLOR_TRANSPARENT = 0;
+    screen_buffer_format = SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888);
+    COLOR_TRANSPARENT = SDL_MapRGBA(screen_buffer_format, 0, 0, 0, 0);
 
     player_hand_anim = engine_anim_texture_load("./res/hand.png", 128, 128, 4);
 
