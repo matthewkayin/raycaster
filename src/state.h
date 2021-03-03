@@ -40,6 +40,8 @@ typedef struct State{
 
     float player_knockback_timer;
 
+    int player_spell_selection;
+
     int player_animation_state;
     int player_animation_frame;
     float player_animation_timer;
@@ -67,17 +69,19 @@ void state_update(State* state, float delta);
 void enemy_update(State* state, int index, float delta);
 
 // Collision helpers / handlers
-bool in_wall(State* state, vector v);
-bool rect_in_wall(State* state, vector rect_pos, vector rect_dim);
-void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity);
+bool in_wall(State* state, vector v); // returns true if the position given by the vector is in a wall on the map
+bool rect_in_wall(State* state, vector rect_pos, vector rect_dim); // returns true if the given rectangle intersects with a wall on the map
+void check_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity); // checks for wall collisions for a given "mover" that has moved this frame. if there is a collision, movement will be rewinded along the axis where collision occurred
 void check_rect_wall_collisions(State* state, vector* mover_position, vector mover_last_pos, vector velocity, float rect_size);
 void check_sprite_collision(vector* mover_position, vector mover_last_pos, vector velocity, vector object, float collision_dist);
 
 // Player
 vector player_get_animation_offset(State* state); // returns the offset of the player animation, used to create the head bobbing effect when walking
 void player_knockback(State* state, vector impact_vector); // knocks back the player with the force of the impact vector
-void player_cast_start(State* state);
+void player_cast_start(State* state); // begins spell windup animation
+void player_cast_finish(State* state); // actually casts the spell player is casting, called by state_update() when the windup animation is finished
 void player_cast_kinetic(State* state); // causes player to cast the "kinetic" spell
+void player_cast_ice(State* state); // causes player to cast the "ice" spell
 
 // Raycasting
 int hits_wall(State* state, vector v); // returns true if point touches a wall on the map

@@ -29,7 +29,8 @@ typedef enum enemy_state{
     ENEMY_STATE_IDLE,
     ENEMY_STATE_MOVING,
     ENEMY_STATE_ATTACKING,
-    ENEMY_STATE_KNOCKBACK
+    ENEMY_STATE_KNOCKBACK,
+    ENEMY_STATE_FROZEN
 } enemy_state;
 
 extern enemy_data* enemy_info;
@@ -47,3 +48,4 @@ typedef struct enemy{
 
 void enemy_animation_update(enemy* the_enemy, float delta);
 bool enemy_has_hurtbox(enemy* the_enemy);
+void enemy_freeze(enemy* the_enemy);

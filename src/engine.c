@@ -599,6 +599,9 @@ void engine_render_state(State* state){
     // Render UI
     vector player_animation_offset = player_get_animation_offset(state);
     engine_render_anim_texture(player_hand_anim, state->player_animation_frame, SCREEN_WIDTH - 160 + (int)player_animation_offset.x, SCREEN_HEIGHT - 128 + (int)player_animation_offset.y);
+    char selected_spell_text[10];
+    sprintf(selected_spell_text, "Spell: %i", state->player_spell_selection);
+    engine_render_text(selected_spell_text, COLOR_WHITE, 0, 348);
 
     engine_render_fps();
     SDL_RenderPresent(renderer);

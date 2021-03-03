@@ -38,6 +38,8 @@ State* state_init(){
 
     new_state->player_knockback_timer = 0;
 
+    new_state->player_spell_selection = 0;
+
     new_state->player_animation_state = PLAYER_ANIMATION_STATE_IDLE;
     new_state->player_animation_frame = 0;
     new_state->player_animation_timer = 0.0;
@@ -171,7 +173,7 @@ void state_update(State* state, float delta){
                 state->player_animation_state = PLAYER_ANIMATION_STATE_IDLE;
                 state->player_animation_frame = 0;
                 state->player_animation_timer = 0;
-                player_cast_kinetic(state);
+                player_cast_finish(state);
 
             }else{
 
@@ -186,10 +188,25 @@ void state_update(State* state, float delta){
 
         if(state->projectiles[i].velocity.x != 0 || state->projectiles[i].velocity.y != 0){
 
+            // Move projectile
             state->projectiles[i].position = vector_sum(state->projectiles[i].position, state->projectiles[i].velocity);
+
+            // Check wall collisions
             if(in_wall(state, state->projectiles[i].position)){
 
                 vector_array_delete(state->projectiles, i, &state->projectile_count, sizeof(projectile));
+                continue;
+            }
+
+            // Check enemy collisions
+            for(int j = 0; j < state->enemy_count; j++){
+
+                if(vector_distance(state->projectiles[i].position, state->enemies[j].position) <= 0.2){
+
+                    enemy_freeze(&(state->enemies[j]));
+                    vector_array_delete(state->projectiles, i, &state->projectile_count, sizeof(projectile));
+                    continue;
+                }
             }
         }
     }
@@ -209,7 +226,7 @@ void enemy_update(State* state, int index, float delta){
     // Movement
     vector enemy_last_pos = current_enemy->position;
 
-    if(current_enemy->state != ENEMY_STATE_ATTACKING && current_enemy->state != ENEMY_STATE_KNOCKBACK && vector_distance(state->player_position, current_enemy->position) <= current_info->attack_radius){
+    if(current_enemy->state != ENEMY_STATE_ATTACKING && current_enemy->state != ENEMY_STATE_KNOCKBACK && current_enemy->state != ENEMY_STATE_FROZEN && vector_distance(state->player_position, current_enemy->position) <= current_info->attack_radius){
 
         if(state->enemies[index].state != ENEMY_STATE_ATTACKING){
 
@@ -218,7 +235,7 @@ void enemy_update(State* state, int index, float delta){
         }
     }
 
-    if(current_enemy->state == ENEMY_STATE_KNOCKBACK){
+    if(current_enemy->state == ENEMY_STATE_KNOCKBACK || current_enemy->state == ENEMY_STATE_FROZEN){
 
         current_enemy->animation_timer -= delta;
         if(current_enemy->animation_timer <= 0){
@@ -433,6 +450,18 @@ void player_cast_start(State* state){
     state->player_animation_timer = 0;
 }
 
+void player_cast_finish(State* state){
+
+    if(state->player_spell_selection == 0){
+
+        player_cast_kinetic(state);
+
+    }else if(state->player_spell_selection == 1){
+
+        player_cast_ice(state);
+    }
+}
+
 void player_cast_kinetic(State* state){
 
     vector player_look_point = vector_sum(state->player_position, state->player_direction);
@@ -457,6 +486,16 @@ void player_cast_kinetic(State* state){
             current_enemy->current_frame = 0;
         }
     }
+}
+
+void player_cast_ice(State* state){
+
+    projectile to_add = (projectile){
+        .image = 0,
+        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.2)),
+        .velocity = vector_scale(state->player_direction, 0.2)
+    };
+    vector_array_push((void**)&(state->projectiles), &to_add, &(state->projectile_count), &(state->projectile_capacity), sizeof(projectile));
 }
 
 // Raycasting

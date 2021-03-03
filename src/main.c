@@ -17,7 +17,7 @@ int main(){
     }
 
     State* state = state_init();
-    bool input_held[6] = {false, false, false, false, false, false};
+    bool input_held[4] = {false, false, false, false};
 
     bool running = true;
     engine_clock_init();
@@ -33,7 +33,11 @@ int main(){
             }else if(e.type == SDL_KEYDOWN){
 
                 int key = e.key.keysym.sym;
-                if(key == SDLK_w){
+                if(key == SDLK_F11){
+
+                    engine_toggle_fullscreen();
+
+                }if(key == SDLK_w){
 
                     state->player_move_dir.y = -1;
                     input_held[0] = true;
@@ -53,15 +57,11 @@ int main(){
                     state->player_move_dir.x = -1;
                     input_held[3] = true;
 
-                }else if(key == SDLK_q){
+                }else if(key >= SDLK_1 && key <= SDLK_2){
 
-                    state->player_rotate_dir = -1;
-                    input_held[4] = true;
-
-                }else if(key == SDLK_e){
-
-                    state->player_rotate_dir = 1;
-                    input_held[5] = true;
+                    // SDLK values are sequential integers under the hood, so this code
+                    // will set selection to 0 with SDLK_1, to 1 with SDLK_2, etc.
+                    state->player_spell_selection = key - SDLK_1;
                 }
 
             }else if(e.type == SDL_KEYUP){
@@ -86,16 +86,6 @@ int main(){
 
                     state->player_move_dir.x = 1 * (int)(input_held[1]);
                     input_held[3] = false;
-
-                }else if(key == SDLK_q){
-
-                    state->player_rotate_dir = 1 * (int)(input_held[5]);
-                    input_held[4] = false;
-
-                }else if(key == SDLK_e){
-
-                    state->player_rotate_dir = -1 * (int)(input_held[4]);
-                    input_held[5] = false;
                 }
 
             }else if(e.type == SDL_MOUSEMOTION){
