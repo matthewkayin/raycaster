@@ -78,10 +78,11 @@ void check_sprite_collision(vector* mover_position, vector mover_last_pos, vecto
 // Player
 vector player_get_animation_offset(State* state); // returns the offset of the player animation, used to create the head bobbing effect when walking
 void player_knockback(State* state, vector impact_vector); // knocks back the player with the force of the impact vector
-void player_cast_start(State* state); // begins spell windup animation
+bool player_is_spellcasting(State* state);
+void player_cast_start(State* state, int spell_index); // begins spell windup animation
 void player_cast_finish(State* state); // actually casts the spell player is casting, called by state_update() when the windup animation is finished
+void player_cast_bolt(State* state); // causes player to cast the "bolt" spell
 void player_cast_kinetic(State* state); // causes player to cast the "kinetic" spell
-void player_cast_ice(State* state); // causes player to cast the "ice" spell
 
 // Raycasting
 int hits_wall(State* state, vector v); // returns true if point touches a wall on the map

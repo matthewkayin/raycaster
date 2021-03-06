@@ -56,12 +56,6 @@ int main(){
 
                     state->player_move_dir.x = -1;
                     input_held[3] = true;
-
-                }else if(key >= SDLK_1 && key <= SDLK_2){
-
-                    // SDLK values are sequential integers under the hood, so this code
-                    // will set selection to 0 with SDLK_1, to 1 with SDLK_2, etc.
-                    state->player_spell_selection = key - SDLK_1;
                 }
 
             }else if(e.type == SDL_KEYUP){
@@ -96,7 +90,17 @@ int main(){
 
                 if(e.button.button == SDL_BUTTON_LEFT){
 
-                    player_cast_start(state);
+                    if(!player_is_spellcasting(state)){
+
+                        player_cast_start(state, 0);
+                    }
+
+                }else if(e.button.button == SDL_BUTTON_RIGHT){
+
+                    if(!player_is_spellcasting(state)){
+
+                        player_cast_start(state, 1);
+                    }
                 }
             }
         }

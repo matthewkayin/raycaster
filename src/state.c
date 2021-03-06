@@ -83,7 +83,8 @@ State* state_init(){
                     .current_frame = 0,
                     .animation_timer = 0,
                     .position = (vector){ .x = x + 0.5, .y = y + 0.5 },
-                    .velocity = ZERO_VECTOR
+                    .velocity = ZERO_VECTOR,
+                    .health = 3
                 };
                 vector_array_push((void**)&(new_state->enemies), &to_push, &new_state->enemy_count, &new_state->enemy_capacity, sizeof(enemy));
             }
@@ -203,7 +204,7 @@ void state_update(State* state, float delta){
 
                 if(vector_distance(state->projectiles[i].position, state->enemies[j].position) <= 0.2){
 
-                    enemy_freeze(&(state->enemies[j]));
+                    enemy_injure(&(state->enemies[j]), 1, ZERO_VECTOR, 10.0);
                     vector_array_delete(state->projectiles, i, &state->projectile_count, sizeof(projectile));
                     continue;
                 }
@@ -223,10 +224,16 @@ void enemy_update(State* state, int index, float delta){
     enemy* current_enemy = &state->enemies[index];
     enemy_data* current_info = &(enemy_info[state->enemies[index].name]);
 
+    if(current_enemy->health <= 0){
+
+        vector_array_delete(state->enemies, index, &state->enemy_count, sizeof(enemy));
+        return;
+    }
+
     // Movement
     vector enemy_last_pos = current_enemy->position;
 
-    if(current_enemy->state != ENEMY_STATE_ATTACKING && current_enemy->state != ENEMY_STATE_KNOCKBACK && current_enemy->state != ENEMY_STATE_FROZEN && vector_distance(state->player_position, current_enemy->position) <= current_info->attack_radius){
+    if(current_enemy->state != ENEMY_STATE_ATTACKING && current_enemy->state != ENEMY_STATE_KNOCKBACK && vector_distance(state->player_position, current_enemy->position) <= current_info->attack_radius){
 
         if(state->enemies[index].state != ENEMY_STATE_ATTACKING){
 
@@ -235,7 +242,7 @@ void enemy_update(State* state, int index, float delta){
         }
     }
 
-    if(current_enemy->state == ENEMY_STATE_KNOCKBACK || current_enemy->state == ENEMY_STATE_FROZEN){
+    if(current_enemy->state == ENEMY_STATE_KNOCKBACK){
 
         current_enemy->animation_timer -= delta;
         if(current_enemy->animation_timer <= 0){
@@ -443,8 +450,14 @@ void player_knockback(State* state, vector impact_vector){
     state->player_animation_timer = 0;
 }
 
-void player_cast_start(State* state){
+bool player_is_spellcasting(State* state){
 
+    return state->player_animation_state == PLAYER_ANIMATION_STATE_SPELLCAST;
+}
+
+void player_cast_start(State* state, int spell_index){
+
+    state->player_spell_selection = spell_index;
     state->player_animation_state = PLAYER_ANIMATION_STATE_SPELLCAST;
     state->player_animation_frame = 0;
     state->player_animation_timer = 0;
@@ -454,12 +467,22 @@ void player_cast_finish(State* state){
 
     if(state->player_spell_selection == 0){
 
-        player_cast_kinetic(state);
+        player_cast_bolt(state);
 
     }else if(state->player_spell_selection == 1){
 
-        player_cast_ice(state);
+        player_cast_kinetic(state);
     }
+}
+
+void player_cast_bolt(State* state){
+
+    projectile to_add = (projectile){
+        .image = 0,
+        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.2)),
+        .velocity = vector_scale(state->player_direction, 0.1)
+    };
+    vector_array_push((void**)&(state->projectiles), &to_add, &(state->projectile_count), &(state->projectile_capacity), sizeof(projectile));
 }
 
 void player_cast_kinetic(State* state){
@@ -480,22 +503,9 @@ void player_cast_kinetic(State* state){
         float angle = (atan2(difference_vector.y, difference_vector.x) * (180 / PI));
         if(fabs(player_angle - angle) <= 50.0){
 
-            current_enemy->state = ENEMY_STATE_KNOCKBACK;
-            current_enemy->velocity = vector_scale(difference_vector, 0.1);
-            current_enemy->animation_timer = 20.0;
-            current_enemy->current_frame = 0;
+            enemy_injure(current_enemy, 0, vector_scale(difference_vector, 0.1), 20.0);
         }
     }
-}
-
-void player_cast_ice(State* state){
-
-    projectile to_add = (projectile){
-        .image = 0,
-        .position = vector_sum(state->player_position, vector_scale(state->player_direction, 0.2)),
-        .velocity = vector_scale(state->player_direction, 0.2)
-    };
-    vector_array_push((void**)&(state->projectiles), &to_add, &(state->projectile_count), &(state->projectile_capacity), sizeof(projectile));
 }
 
 // Raycasting

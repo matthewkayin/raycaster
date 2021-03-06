@@ -34,7 +34,7 @@ void enemy_animation_update(enemy* the_enemy, float delta){
         the_enemy->current_frame = 0;
         return;
     }
-    if(the_enemy->state == ENEMY_STATE_KNOCKBACK || the_enemy->state == ENEMY_STATE_FROZEN){
+    if(the_enemy->state == ENEMY_STATE_KNOCKBACK){
 
         the_enemy->current_frame = 0;
         return;
@@ -79,9 +79,14 @@ bool enemy_has_hurtbox(enemy* the_enemy){
     return the_enemy->state == ENEMY_STATE_ATTACKING && the_enemy->current_frame >= the_enemy_info->attack_danger_frame && the_enemy->current_frame < the_enemy_info->attack_safe_frame;
 }
 
-void enemy_freeze(enemy* the_enemy){
+void enemy_injure(enemy* the_enemy, int damage, vector knockback, float knockback_duration){
 
-    the_enemy->state = ENEMY_STATE_FROZEN;
-    the_enemy->velocity = ZERO_VECTOR;
-    the_enemy->animation_timer = 60 * 5;
+    the_enemy->health -= damage;
+    if(knockback_duration != 0){
+
+        the_enemy->state = ENEMY_STATE_KNOCKBACK;
+        the_enemy->velocity = knockback;
+        the_enemy->animation_timer = knockback_duration;
+        the_enemy->current_frame = 0;
+    }
 }
