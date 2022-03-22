@@ -4,8 +4,6 @@
 
 #include <SDL2/SDL.h>
 
-void loop_game();
-
 int main(){
 
     enemy_data_init(); // init first since needed by engine
